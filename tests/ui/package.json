@@ -1,0 +1,13 @@
+{
+  "name": "net-swift-ui-tests",
+  "version": "1.0.0",
+  "description": "UI tests for Net-Swift Orchestrator",
+  "main": "test_admin_login_puppeteer.js",
+  "scripts": {
+    "test": "node test_admin_login_puppeteer.js",
+    "test:login": "node test_login_puppeteer.js"
+  },
+  "dependencies": {
+    "puppeteer": "^21.0.0"
+  }
+}
