@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
+from rag_processor import process_and_store_documents, handle_rag_query
 import requests
 import functools
 import secrets
@@ -12,6 +13,15 @@ app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'net_swift_frontend_secret_k
 
 # Configuration for the backend API
 BACKEND_API_URL = "http://127.0.0.1:5050"
+
+# Configuration for file uploads
+UPLOAD_FOLDER = 'uploads'
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'md'}
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+
+# Ensure the upload folder exists
+if not os.path.exists(UPLOAD_FOLDER):
+    os.makedirs(UPLOAD_FOLDER)
 
 # Helper function for making authenticated API requests
 def api_request(method, endpoint, **kwargs):
@@ -153,6 +163,57 @@ def login():
 def genai_networks_engineer():
     """Render the GENAI Networks Engineer chat page."""
     return render_template('genai_engineer.html', active_tab='genai_engineer')
+
+def allowed_file(filename):
+    return '.' in filename and \
+           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+@app.route('/api/upload_document', methods=['POST'])
+@login_required
+def upload_document():
+    """Handle document uploads for the RAG agent."""
+    if 'files[]' not in request.files:
+        return jsonify({'error': 'No file part in the request'}), 400
+    
+    files = request.files.getlist('files[]')
+    successful_uploads = []
+    errors = []
+
+    for file in files:
+        if file.filename == '':
+            errors.append('A file without a name was submitted.')
+            continue
+        if file and allowed_file(file.filename):
+            filename = secrets.token_hex(8) + "_" + file.filename
+            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
+            successful_uploads.append(filename)
+        else:
+            errors.append(f'File type not allowed for {file.filename}')
+
+    if not errors:
+        # Trigger the RAG processing pipeline in the background
+        process_and_store_documents(successful_uploads)
+        return jsonify({'message': 'Files uploaded and processing started.', 'filenames': successful_uploads})
+    else:
+        return jsonify({'error': ', '.join(errors)}), 400
+
+@app.route('/api/chat', methods=['POST'])
+@login_required
+def chat():
+    """Handle chat messages from the user."""
+    data = request.json
+    query = data.get('query')
+    mode = data.get('mode')
+
+    if not query:
+        return jsonify({'error': 'Query is missing.'}), 400
+
+    if mode == 'rag':
+        response = handle_rag_query(query)
+        return jsonify({'response': response})
+    
+    # Placeholder for other modes
+    return jsonify({'response': f'Mode {mode} is not yet implemented.'})
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():

@@ -139,4 +139,100 @@
     </div>
 </div>
 
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    // --- Constants ---
+    const dropZone = document.getElementById('drop-zone');
+    const fileInput = document.getElementById('file-input');
+    const documentList = document.getElementById('document-list');
+    const chatForm = document.getElementById('chat-form');
+    const userInput = document.getElementById('user-input');
+    const chatBox = document.getElementById('chat-box');
+    const modeSelector = document.getElementById('ai-mode-tabs');
+    let currentMode = 'rag'; // Default mode
+
+    // --- File Upload Logic ---
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(eventName => {
+        dropZone.addEventListener(eventName, preventDefaults, false);
+        document.body.addEventListener(eventName, preventDefaults, false);
+    });
+    ['dragenter', 'dragover'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.add('dragover'), false));
+    ['dragleave', 'drop'].forEach(eventName => dropZone.addEventListener(eventName, () => dropZone.classList.remove('dragover'), false));
+    dropZone.addEventListener('drop', handleDrop, false);
+    dropZone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+
+    function preventDefaults(e) {
+        e.preventDefault();
+        e.stopPropagation();
+    }
+
+    function handleDrop(e) {
+        handleFiles(e.dataTransfer.files);
+    }
+
+    function handleFiles(files) {
+        const formData = new FormData();
+        for (let i = 0; i < files.length; i++) formData.append('files[]', files[i]);
+
+        fetch('/api/upload_document', { method: 'POST', body: formData })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) alert(`Error: ${data.error}`);
+                else updateDocumentList(data.filenames);
+            })
+            .catch(error => console.error('Error uploading files:', error));
+    }
+
+    function updateDocumentList(filenames) {
+        if (documentList.querySelector('.text-muted')) documentList.innerHTML = '';
+        filenames.forEach(name => {
+            const docElement = document.createElement('div');
+            docElement.textContent = name.split('_').slice(1).join('_');
+            docElement.classList.add('p-1');
+            documentList.appendChild(docElement);
+        });
+    }
+
+    // --- Chat Logic ---
+    modeSelector.addEventListener('click', (e) => {
+        if (e.target.tagName === 'A') {
+            currentMode = e.target.getAttribute('data-mode');
+            modeSelector.querySelectorAll('.nav-link').forEach(link => link.classList.remove('active'));
+            e.target.classList.add('active');
+            dropZone.style.display = (currentMode === 'rag') ? 'block' : 'none';
+        }
+    });
+
+    chatForm.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        const query = userInput.value.trim();
+        if (!query) return;
+
+        appendMessage(query, 'user');
+        userInput.value = '';
+
+        try {
+            const response = await fetch('/api/chat', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ query, mode: currentMode })
+            });
+            const data = await response.json();
+            appendMessage(data.response, 'bot');
+        } catch (error) {
+            console.error('Chat API error:', error);
+            appendMessage('Sorry, I encountered an error. Please try again.', 'bot');
+        }
+    });
+
+    function appendMessage(text, sender) {
+        const messageDiv = document.createElement('div');
+        messageDiv.classList.add('chat-message', sender === 'user' ? 'user-message' : 'bot-message');
+        messageDiv.textContent = text;
+        chatBox.appendChild(messageDiv);
+        chatBox.scrollTop = chatBox.scrollHeight;
+    }
+});
+</script>
 {% endblock %}
