@@ -213,7 +213,10 @@ def chat():
         return jsonify({'response': response})
     
     if mode == 'agent':
-        response = handle_agent_query(query)
+        # Create a session for the agent to use, pre-filled with auth cookies
+        api_session = requests.Session()
+        api_session.cookies.set('session', session.get('backend_session_cookie'))
+        response = handle_agent_query(query, api_session)
         return jsonify({'response': response})
     
     # Placeholder for other modes

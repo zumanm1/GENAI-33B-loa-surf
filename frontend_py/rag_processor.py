@@ -79,26 +79,22 @@ def handle_rag_query(query):
         return "An error occurred while processing your request. Please ensure Ollama is running and the model is available."
 
 
-def get_device_config(hostname: str) -> str:
+def get_device_config(hostname: str, api_session: requests.Session) -> str:
     """Tool for the AI agent. Fetches the running configuration for a specific device by its hostname."""
     try:
-        # This tool requires an authenticated session, which we don't have here.
-        # This is a known limitation we will address later by passing the session.
-        # For now, we will mock the response for demonstration purposes.
-        mock_configs = {
-            "core-router-01": "interface GigabitEthernet0/1\n ip address 192.168.1.1 255.255.255.0\n no shutdown",
-            "access-switch-01": "interface Vlan10\n ip address 10.10.10.1 255.255.255.0\n name USERS",
-            "dist-switch-01": "router ospf 1\n network 10.0.0.0 0.255.255.255 area 0"
-        }
-        config = mock_configs.get(hostname, f"No configuration found for device '{hostname}'.")
+        response = api_session.get(f"http://127.0.0.1:5050/api/devices/{hostname}")
+        if response.status_code == 404:
+            return f"Device with hostname '{hostname}' not found."
+        response.raise_for_status()
+        config = response.json().get('config', 'No configuration available.')
         return f"The configuration for {hostname} is:\n\n{config}"
-    except Exception as e:
-        return f"An error occurred while fetching config for {hostname}: {e}"
+    except requests.RequestException as e:
+        return f"An API error occurred while fetching config for {hostname}: {e}"
 
-def get_list_of_devices():
+def get_list_of_devices(api_session: requests.Session) -> str:
     """Tool for the AI agent. Fetches the list of network devices from the backend API."""
     try:
-        response = requests.get("http://127.0.0.1:5050/api/devices")
+        response = api_session.get("http://127.0.0.1:5050/api/devices")
         response.raise_for_status() # Raise an exception for bad status codes
         devices = response.json()
         # Format the output for the LLM
@@ -108,19 +104,24 @@ def get_list_of_devices():
         return "I was unable to fetch the list of devices from the backend."
 
 
-def handle_agent_query(query):
+def handle_agent_query(query, api_session: requests.Session):
     """Handle a user query using the AI Agent."""
     try:
         llm = ChatOllama(model="llama2")
+        # Bind the authenticated session to the tool functions
+        from functools import partial
+        get_list_of_devices_with_session = partial(get_list_of_devices, api_session=api_session)
+        get_device_config_with_session = partial(get_device_config, api_session=api_session)
+
         tools = [
             Tool(
                 name="GetListOfDevices",
-                func=get_list_of_devices,
+                func=get_list_of_devices_with_session,
                 description="Use this tool to get the hostnames of all available network devices. It takes no arguments."
             ),
             Tool(
                 name="GetDeviceConfig",
-                func=get_device_config,
+                func=get_device_config_with_session,
                 description="Use this tool to get the running configuration for a specific network device. It requires a single argument: the hostname of the device."
             )
         ]
