@@ -3,13 +3,19 @@ from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
 import json
+import pathlib
+
+# Database file inside backend directory to stay consistent with start_services.sh cleanup
+BASE_DIR = pathlib.Path(__file__).parent
+DB_PATH = str(BASE_DIR / 'network_automation.db')
 import logging
 import secrets
 from datetime import datetime
 import sqlite3
 import bcrypt
 from pathlib import Path
-from services.ai_agent_client import AIAgentClient
+from backend.services.ai_agent_client import AIAgentClient
+from baseline_core.routes import bp as baseline_bp
 
 # Network automation imports (lazy-loaded inside functions to speed up startup)
 ConnectHandler = None
@@ -61,6 +67,8 @@ CORS(app)
 
 # Initialize AI Agent Client
 ai_agent = AIAgentClient()
+
+app.register_blueprint(baseline_bp, url_prefix="/api")
 
 # Device inventory for EVE-NG routers
 DEVICE_INVENTORY = {
@@ -116,7 +124,7 @@ DEVICE_INVENTORY = {
 
 def init_database():
     """Initialize SQLite database for storing configurations and job history"""
-    conn = sqlite3.connect('network_automation.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     # Create tables
@@ -135,8 +143,8 @@ def init_database():
     # Users table for authentication
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
-            username TEXT PRIMARY KEY,
-            password TEXT NOT NULL
+            username TEXT UNIQUE NOT NULL,
+            password BLOB NOT NULL
         )
     ''')
 
@@ -166,7 +174,7 @@ def init_database():
 
 def save_config_backup(device, command, output, method, parsed_data=None):
     """Save configuration backup to database"""
-    conn = sqlite3.connect('network_automation.db')
+    conn = sqlite3.connect(DB_PATH)
     cursor = conn.cursor()
     
     cursor.execute('''
@@ -446,7 +454,8 @@ def api_register():
     if not username or not password:
         return jsonify({'error': 'username and password required'}), 400
     try:
-        conn = sqlite3.connect('network_automation.db')
+        conn = sqlite3.connect(DB_PATH)
+
         c = conn.cursor()
         hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
         c.execute('INSERT INTO users(username, password) VALUES(?, ?)', (username, hashed_password))
@@ -463,14 +472,23 @@ def api_login():
     password = data.get('password')
     if not username or not password:
         return jsonify({'error': 'username and password required'}), 400
-    conn = sqlite3.connect('network_automation.db')
+    conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
     c.execute('SELECT password FROM users WHERE username = ?', (username,))
     row = c.fetchone()
     conn.close()
-    if row and bcrypt.checkpw(password.encode('utf-8'), row[0]):
-        token = secrets.token_hex(16)
-        return jsonify({'username': username, 'auth_token': token})
+    if row:
+        # Handle password hash that might be stored as string or bytes
+        hashed_password = row[0]
+        if isinstance(hashed_password, str):
+            hashed_password = hashed_password.encode('utf-8')
+        try:
+            if bcrypt.checkpw(password.encode('utf-8'), hashed_password):
+                token = secrets.token_hex(16)
+                return jsonify({'username': username, 'auth_token': token})
+        except ValueError:
+            # Malformed hash in DB (shouldn't happen); treat as invalid credentials
+            pass
     return jsonify({'error': 'invalid credentials'}), 401
 
 # Existing backups route remains below
@@ -506,7 +524,7 @@ def ai_analyze_config():
 def get_events():
     """Retrieve recent system events for the dashboard"""
     try:
-        conn = sqlite3.connect('network_automation.db')
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         
@@ -556,7 +574,7 @@ def get_events():
 def get_backups():
     """Retrieve all configuration backups from the database"""
     try:
-        conn = sqlite3.connect('network_automation.db')
+        conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         cursor = conn.cursor()
         cursor.execute("SELECT id, device, command, method, timestamp, parsed_data IS NOT NULL as has_parsed_data FROM config_backups ORDER BY timestamp DESC")
@@ -567,6 +585,8 @@ def get_backups():
         logger.error(f"Error fetching backups: {e}")
         return jsonify({"error": str(e)}), 500
 
+# Ensure database is ready when running under gunicorn / any WSGI server
+init_database()
 
 if __name__ == '__main__':
     # Initialize database

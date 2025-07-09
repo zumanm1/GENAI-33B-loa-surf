@@ -1,86 +1,86 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from rag_processor import process_and_store_documents, handle_rag_query, handle_agent_query, handle_agentic_rag_query
 import requests
 import functools
 import secrets
 from datetime import datetime
-
 import os
 
 app = Flask(__name__, template_folder='templates')
-# Use a stable secret key for consistent session encryption across workers/reloads
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'net_swift_frontend_secret_key')
 
-# Configuration for the backend API
+# Configuration
 BACKEND_API_URL = "http://127.0.0.1:5050"
-
-# Configuration for file uploads
+AI_SERVICE_URL = "http://127.0.0.1:5052"
 UPLOAD_FOLDER = 'uploads'
 ALLOWED_EXTENSIONS = {'txt', 'pdf', 'md'}
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
-# Ensure the upload folder exists
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
 
-# Helper function for making authenticated API requests
 def api_request(method, endpoint, **kwargs):
     """Make an authenticated request to the backend API."""
     url = f"{BACKEND_API_URL}{endpoint}"
-    
-    # Add auth token to headers if available
     headers = kwargs.get('headers', {}) or {}
     if 'auth_token' in session:
         headers['Authorization'] = f"Bearer {session['auth_token']}"
     kwargs['headers'] = headers
     
-    # Create a persistent session for requests
-    s = requests.Session()
+    # Set a reasonable timeout to prevent hanging
+    if 'timeout' not in kwargs:
+        kwargs['timeout'] = 5  # 5 seconds timeout
     
-    # Set cookies explicitly on the session
+    s = requests.Session()
     cookies = {}
     if 'auth_token' in session:
         cookies['auth_token'] = session['auth_token']
     if 'username' in session:
         cookies['username'] = session['username']
     
-    # Include all backend session cookies in the request if available
     for key, value in session.items():
         if key.startswith('backend_'):
-            # Extract the original cookie name by removing the 'backend_' prefix
             original_cookie_name = key[8:]
             cookies[original_cookie_name] = value
     
-    # Merge with any cookies provided in kwargs
     if 'cookies' in kwargs:
         cookies.update(kwargs.pop('cookies'))
     
-    # Add debug logging
-    print(f"API Request to {url} with headers: {headers}")
-    print(f"API Request cookies: {cookies}")
-    
-    # Make the request with cookies
     for cookie_name, cookie_value in cookies.items():
         s.cookies.set(cookie_name, cookie_value)
     
-    # Make the request
-    response = s.request(method, url, **kwargs)
-    
-    # Debug response
-    print(f"API Response status: {response.status_code}")
-    if response.status_code != 200:
-        print(f"API Response error: {response.text}")
-    else:
-        print(f"API Response success: {response.text[:100]}...")
-        
-    return response
-
-# ---------------------------------------------------------------------------
-# Authentication
-# ---------------------------------------------------------------------------
+    try:
+        response = s.request(method, url, **kwargs)
+        return response
+    except requests.exceptions.ConnectionError:
+        # Return a response-like object with error details
+        class ErrorResponse:
+            status_code = 503
+            text = 'Backend service unavailable'
+            def json(self):
+                return {"error": "Backend service unavailable"}
+            def raise_for_status(self):
+                raise requests.exceptions.HTTPError("Backend service unavailable")
+        return ErrorResponse()
+    except requests.exceptions.Timeout:
+        class TimeoutResponse:
+            status_code = 504
+            text = 'Backend request timed out'
+            def json(self):
+                return {"error": "Backend request timed out"}
+            def raise_for_status(self):
+                raise requests.exceptions.HTTPError("Backend request timed out")
+        return TimeoutResponse()
+    except requests.exceptions.RequestException as e:
+        class GenericErrorResponse:
+            status_code = 500
+            text = f'Error connecting to backend: {str(e)}'
+            def json(self):
+                return {"error": f"Error connecting to backend: {str(e)}"}
+            def raise_for_status(self):
+                raise requests.exceptions.HTTPError(f"Error connecting to backend: {str(e)}")
+        return GenericErrorResponse()
 
 def login_required(view):
-    """View decorator that redirects anonymous users to the login page."""
     @functools.wraps(view)
     def wrapped_view(**kwargs):
         if 'username' not in session:
@@ -90,19 +90,14 @@ def login_required(view):
 
 @app.context_processor
 def inject_user():
-    """Inject user session data into all templates."""
     return dict(username=session.get('username'))
-
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
-    """Handle user login."""
-    # Try auto-login first if it's a GET request
-    if request.method == 'GET':
+    if request.method == 'GET' and os.environ.get('DISABLE_AUTO_LOGIN') != 'true':
         if perform_auto_login():
             return redirect(url_for('index'))
     
-    # If user is already logged in, redirect to dashboard
     if 'username' in session and 'auth_token' in session:
         return redirect(url_for('index'))
         
@@ -110,97 +105,101 @@ def login():
         username = request.form.get('username')
         password = request.form.get('password')
         try:
-            # Create a session to maintain cookies
             s = requests.Session()
-            response = s.post(f"{BACKEND_API_URL}/api/login", json={'username': username, 'password': password})
-            
-            if response.status_code == 200:
-                # Clear and regenerate the session to prevent session fixation
-                session.clear()
+            try:
+                response = s.post(f"{BACKEND_API_URL}/api/login", json={'username': username, 'password': password}, timeout=5)
                 
-                # Store user info and auth token
-                session['username'] = response.json().get('username')
-                session['logged_in'] = True
-                session['login_time'] = str(datetime.now())
-                
-                # Store auth token if provided
-                if 'auth_token' in response.json():
-                    session['auth_token'] = response.json().get('auth_token')
-                    print(f"Stored auth token: {session['auth_token'][:10]}...")
+                if response.status_code == 200:
+                    # Handle empty response case explicitly
+                    if not response.text.strip():
+                        app.logger.error("Empty response received from backend")
+                        flash("Backend returned an empty response. Service may be starting up. Please try again.", 'warning')
+                        return render_template('login.html')
+                        
+                    try:
+                        json_data = response.json()
+                        session.clear()
+                        session['username'] = json_data.get('username')
+                        session['logged_in'] = True
+                        session['auth_token'] = json_data.get('auth_token')
+                        session['login_time'] = datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+                        session['auto_login_attempts'] = 0  # Reset auto-login attempts
+                        
+                        resp = redirect(url_for('index'))
+                        resp.set_cookie('auth_token', session['auth_token'], httponly=True, samesite='Strict', max_age=3600*24)
+                        flash(f'Welcome back, {username}! You have successfully logged in.', 'success')
+                        return resp
+                    except ValueError as e:
+                        app.logger.error(f"JSON parsing error: {str(e)}")
+                        app.logger.error(f"Response content: '{response.text}'")
+                        flash(f'Backend returned invalid JSON. The service may be starting up. Please try again in a moment.', 'warning')
                 else:
-                    # Generate a simple token from username as fallback
-                    import hashlib
-                    import time
-                    token = hashlib.sha256(f"{username}:{time.time()}".encode()).hexdigest()
-                    session['auth_token'] = token
-                    print(f"Generated fallback auth token: {token[:10]}...")
-                
-                # Store all backend cookies for API requests
-                for cookie_name, cookie_value in s.cookies.items():
-                    session[f'backend_{cookie_name}'] = cookie_value
-                    print(f"Storing backend cookie: {cookie_name} = {cookie_value}")
-                
-                # Debug: Print all session data
-                print(f"Session after login: {dict(session)}")
-                
-                # Set a secure, HTTP-only cookie with the auth token for extra security
-                resp = redirect(url_for('index'))
-                resp.set_cookie('auth_token', session['auth_token'], httponly=True, samesite='Strict', max_age=3600*24)
-                
-                # Add success message
-                flash(f'Welcome back, {username}! You have successfully logged in.', 'success')
-                
-                return resp
-            else:
-                flash(response.json().get('error', 'Login failed.'), 'danger')
-        except requests.exceptions.RequestException as e:
-            flash(f"Error connecting to backend: {e}", 'danger')
+                    # For non-200 responses
+                    response_text = response.text.strip()
+                    try:
+                        if response_text:
+                            error_message = response.json().get('error', 'Login failed.')
+                        else:
+                            error_message = f"Login failed (Status: {response.status_code}, empty response)"
+                    except ValueError:
+                        error_message = f"Login failed (Status: {response.status_code}, invalid response format)"
+                    flash(error_message, 'danger')
+            except requests.exceptions.ConnectionError:
+                flash('Backend service is unavailable. Please try again later.', 'danger')
+            except requests.exceptions.Timeout:
+                flash('Backend request timed out. Please try again later.', 'danger')
+            except requests.exceptions.RequestException as e:
+                flash(f"Error connecting to backend: {str(e)}", 'danger')
+        except Exception as e:
+            app.logger.error(f"Unexpected error during login: {str(e)}")
+            flash(f'An unexpected error occurred: {str(e)}', 'danger')
     return render_template('login.html')
 
-
-@app.route('/GENAI_NETWORKS_ENGINEER')
-@login_required
-def genai_networks_engineer():
-    """Render the GENAI Networks Engineer chat page."""
-    return render_template('genai_engineer.html', active_tab='genai_engineer')
-
 def allowed_file(filename):
-    return '.' in filename and \
-           filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @app.route('/api/upload_document', methods=['POST'])
 @login_required
 def upload_document():
-    """Handle document uploads for the RAG agent."""
     if 'files[]' not in request.files:
-        return jsonify({'error': 'No file part in the request'}), 400
+        return jsonify({'error': 'No file part'}), 400
     
     files = request.files.getlist('files[]')
-    successful_uploads = []
     errors = []
+    successful_uploads = []
 
     for file in files:
         if file.filename == '':
-            errors.append('A file without a name was submitted.')
             continue
         if file and allowed_file(file.filename):
             filename = secrets.token_hex(8) + "_" + file.filename
-            file.save(os.path.join(app.config['UPLOAD_FOLDER'], filename))
-            successful_uploads.append(filename)
-        else:
-            errors.append(f'File type not allowed for {file.filename}')
+            filepath = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+            file.save(filepath)
 
-    if not errors:
-        # Trigger the RAG processing pipeline in the background
-        process_and_store_documents(successful_uploads)
-        return jsonify({'message': 'Files uploaded and processing started.', 'filenames': successful_uploads})
-    else:
-        return jsonify({'error': ', '.join(errors)}), 400
+            try:
+                with open(filepath, 'rb') as f:
+                    ai_response = requests.post(
+                        f"{AI_SERVICE_URL}/upload",
+                        files={'file': (filename, f, file.mimetype)}
+                    )
+                    ai_response.raise_for_status()
+                successful_uploads.append(filename)
+            except requests.exceptions.RequestException as e:
+                app.logger.error(f"AI service error for {filename}: {e}")
+                errors.append(f"Error processing {filename}: Could not connect to AI service.")
+            finally:
+                if os.path.exists(filepath):
+                    os.remove(filepath)
+        else:
+            errors.append(f'Invalid file type for {file.filename}')
+
+    if errors:
+        return jsonify({'error': '. '.join(errors)}), 500
+    return jsonify({'message': 'Documents processed successfully.', 'filenames': successful_uploads})
 
 @app.route('/api/chat', methods=['POST'])
 @login_required
 def chat():
-    """Handle chat messages from the user."""
     data = request.json
     query = data.get('query')
     mode = data.get('mode')
@@ -208,36 +207,26 @@ def chat():
     if not query:
         return jsonify({'error': 'Query is missing.'}), 400
 
-    if mode == 'rag':
-        response = handle_rag_query(query)
-        return jsonify({'response': response})
-    
-    if mode == 'agent':
-        # Create a session for the agent to use, pre-filled with auth cookies
-        api_session = requests.Session()
-        api_session.cookies.set('session', session.get('backend_session_cookie'))
-        response = handle_agent_query(query, api_session)
-        return jsonify({'response': response})
-
-    if mode == 'agentic_rag':
-        api_session = requests.Session()
-        api_session.cookies.set('session', session.get('backend_session_cookie'))
-        response = handle_agentic_rag_query(query, api_session)
-        return jsonify({'response': response})
-    
-    # Placeholder for other modes
-    return jsonify({'response': f'Mode {mode} is not yet implemented.'})
+    try:
+        response = requests.post(f"{AI_SERVICE_URL}/chat", json={'query': query, 'query_type': mode})
+        response.raise_for_status()
+        return jsonify(response.json()), response.status_code
+    except requests.exceptions.RequestException as e:
+        app.logger.error(f"API error during chat processing: {e}")
+        return jsonify({'error': 'Failed to communicate with AI service'}), 503
+    except Exception as e:
+        app.logger.error(f"Error during chat processing: {e}")
+        return jsonify({'error': 'An error occurred during processing.'}), 500
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
-    """Handle user registration."""
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
         try:
             response = requests.post(f"{BACKEND_API_URL}/api/register", json={'username': username, 'password': password})
-            if response.status_code in (201, 409):
-                flash('registered successfully', 'success')
+            if response.status_code == 201:
+                flash('Registration successful. Please log in.', 'success')
                 return redirect(url_for('login'))
             else:
                 flash(response.json().get('error', 'Registration failed.'), 'danger')
@@ -245,398 +234,202 @@ def register():
             flash(f"Error connecting to backend: {e}", 'danger')
     return render_template('register.html')
 
+@app.route('/GENAI_NETWORKS_ENGINEER')
+@login_required
+def genai_networks_engineer():
+    return render_template('genai_engineer.html', active_tab='genai_engineer')
 
 @app.route('/logout')
 def logout():
-    """Log the user out."""
     session.clear()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
 
-
-# Auto-login helper function
 def perform_auto_login():
-    """Automatically log in with default admin credentials"""
-    if 'username' not in session or 'auth_token' not in session:
+    # Check if auto-login is disabled via environment variable
+    if os.environ.get('DISABLE_AUTO_LOGIN') == 'true':
+        return False
+        
+    # Check for redirect loop prevention
+    if session.get('auto_login_attempts', 0) > 3:
+        session['auto_login_attempts'] = 0
+        flash("Auto-login attempts exceeded, please login manually", "warning")
+        return False
+        
+    if 'username' not in session:
         try:
-            # Create a session to maintain cookies
-            s = requests.Session()
-            response = s.post(f"{BACKEND_API_URL}/api/login", json={'username': 'admin', 'password': 'admin'})
+            # Increment attempt counter to prevent infinite redirect loops
+            session['auto_login_attempts'] = session.get('auto_login_attempts', 0) + 1
             
-            if response.status_code == 200:
-                # Store user info and auth token
-                session['username'] = response.json().get('username')
-                session['logged_in'] = True
-                session['login_time'] = str(datetime.now())
+            s = requests.Session()
+            try:
+                response = s.post(
+                    f"{BACKEND_API_URL}/api/login", 
+                    json={'username': 'admin', 'password': 'admin'}, 
+                    timeout=3
+                )
                 
-                # Store auth token if provided
-                if 'auth_token' in response.json():
-                    session['auth_token'] = response.json().get('auth_token')
+                if response.status_code == 200:
+                    # Check for empty response
+                    if not response.text.strip():
+                        app.logger.error("Empty response received from backend during auto-login")
+                        flash("Backend returned an empty response. Please try again or login manually.", 'warning')
+                        return False
+                        
+                    try:
+                        json_data = response.json()
+                        session['username'] = json_data.get('username')
+                        session['logged_in'] = True
+                        if 'auth_token' in json_data:
+                            session['auth_token'] = json_data.get('auth_token')
+                        for cookie in s.cookies:
+                            session[f"backend_{cookie.name}"] = cookie.value
+                        # Reset attempts counter on successful login
+                        session['auto_login_attempts'] = 0
+                        return True
+                    except ValueError as e:
+                        # JSON parsing error
+                        app.logger.error(f"JSON parsing error during auto-login: {str(e)}")
+                        app.logger.error(f"Response content: '{response.text}'")
+                        flash("Backend returned invalid data. Please login manually.", "warning")
+                        return False
+                else:
+                    flash(f"Backend error: {response.status_code}", "danger")
+                    return False
+                    
+            except (requests.exceptions.ConnectionError, requests.exceptions.Timeout) as e:
+                flash(f"Cannot connect to backend: {str(e)}", "danger")
+                return False
                 
-                # Store backend cookies in our session for API requests
-                for cookie in s.cookies:
-                    session[f"backend_{cookie.name}"] = cookie.value
-                    
-                # Set secure HTTP-only cookie for auth token
-                if 'auth_token' in response.json():
-                    auth_token = response.json().get('auth_token')
-                    print(f"Stored auth token: {auth_token[:10]}...")
-                    
-                if not session.get('auto_login_done'):
-                    flash('Auto-logged in as admin', 'success')
-                    session['auto_login_done'] = True
-                print(f"Session after login: {session}")
-                return True
-            return False
         except Exception as e:
-            print(f"Auto-login failed: {e}")
+            # If any other error occurs, don't keep trying
+            flash(f"Auto-login failed: {str(e)}", "danger")
             return False
-    return True  # Already logged in
+            
+    return 'username' in session
 
 @app.route('/')
 def index():
-    """Serve the dashboard page with live stats."""
-    # Try to auto-login
     if not perform_auto_login():
         return redirect(url_for('login'))
     
-    total_devices = online_devices = backups_count = 0
-    devices = []
-    backups = []
-    events = []
-    error = None
-    error_backups = None
-    error_events = None
-
     try:
         dev_resp = api_request('GET', '/api/devices', timeout=3)
         dev_resp.raise_for_status()
-        devices = dev_resp.json()
-        if isinstance(devices, dict) and 'devices' in devices:
-            devices = devices['devices']
-        total_devices = len(devices)
-        online_devices = sum(1 for d in devices if d.get('status') == 'online')
-    except requests.exceptions.RequestException as e:
-        error = f"Error fetching devices: {e}"
+        devices = dev_resp.json().get('devices', [])
+    except requests.exceptions.RequestException:
         devices = []
 
-    # Fetch backups for count
-    try:
-        response = api_request('GET', '/api/backups')
-        response.raise_for_status()
-        backups = response.json()
-    except requests.exceptions.RequestException as e:
-        error_backups = f"Error fetching backups: {e}"
-        backups = []
-
-    # Fetch latest events
-    try:
-        response = api_request('GET', '/api/events')
-        response.raise_for_status()
-        events = response.json()
-    except requests.exceptions.RequestException as e:
-        error_events = f"Error fetching events: {e}"
-        events = []
-
-    online_devices = [d for d in devices if d.get("status") == "online"]
-
-    return render_template(
-        "index.html",
-        devices=devices,
-        online_devices=len(online_devices),
-        total_devices=len(devices),
-        total_backups=len(backups),
-        events=events,
-        error=error,
-        error_backups=error_backups,
-        error_events=error_events,
-    )
+    return render_template("index.html", devices=devices, total_devices=len(devices))
 
 @app.route('/retrieve', methods=['GET', 'POST'])
 @login_required
 def retrieve():
     """Serve the config retrieve page and handle form submission"""
     devices_list = []
-    error = None
-    result = None
-
     try:
         response = api_request('GET', '/api/devices')
         response.raise_for_status()
-        devices_list = response.json()
+        devices_list = response.json().get('devices', [])
     except requests.exceptions.RequestException as e:
-        error = f"Error fetching devices: {e}"
+        flash(f'Error fetching devices: {e}', 'danger')
 
     if request.method == 'POST':
         device_name = request.form.get('device')
         command = request.form.get('command')
-        if command == 'custom':
-            command = request.form.get('custom_command')
-        
         method = request.form.get('method')
-        mode = 'live' if request.form.get('mode') == 'live' else 'mock'
-        
-        if not device_name or not command:
-            error = "Device and command must be specified."
-        else:
-            try:
-                api_response = api_request(
-                    'POST',
-                    '/api/config/retrieve',
-                    json={"device_name": device_name, "command": command}
-                )
-                api_response.raise_for_status()
-                result = api_response.json()
-            except requests.exceptions.RequestException as e:
-                if e.response:
-                    try:
-                        error = f"API Error: {e.response.json().get('error', e.response.text)}"
-                    except requests.exceptions.JSONDecodeError:
-                        error = f"API Error: {e.response.status_code} - {e.response.text}"
-                else:
-                    error = f"Error retrieving configuration: {e}"
+        try:
+            response = api_request('POST', '/api/retrieve', json={'device': device_name, 'command': command, 'method': method})
+            response.raise_for_status()
+            data = response.json()
+            flash(f'Successfully retrieved config from {device_name}', 'success')
+            return render_template('retrieve.html', devices=devices_list, last_output=data.get('output'), active_tab='retrieve')
+        except requests.exceptions.RequestException as e:
+            flash(f'Error: {e}', 'danger')
 
-    form_data = {
-        'device': device_name,
-        'command': command,
-        'method': method,
-        'mode': mode
-    } if request.method == 'POST' and not error else None
-
-    return render_template(
-        "retrieve.html", 
-        active_tab='retrieve', 
-        devices=devices_list, 
-        error=error, 
-        result=result,
-        form_data=form_data
-    )
+    return render_template('retrieve.html', devices=devices_list, active_tab='retrieve')
 
 @app.route('/push', methods=['GET', 'POST'])
 @login_required
 def push():
     """Serve the config push page and handle form submission"""
     devices_list = []
-    error = None
-    result = None
-
     try:
         response = api_request('GET', '/api/devices')
         response.raise_for_status()
-        devices_list = response.json()
+        devices_list = response.json().get('devices', [])
     except requests.exceptions.RequestException as e:
-        error = f"Error fetching devices: {e}"
-
-    restore_data = None
-    if request.method == 'GET':
-        device_from_url = request.args.get('device')
-        commands_from_url = request.args.get('commands')
-        if device_from_url and commands_from_url:
-            restore_data = {
-                'device': device_from_url,
-                'commands': commands_from_url
-            }
+        flash(f'Error fetching devices: {e}', 'danger')
 
     if request.method == 'POST':
         device_name = request.form.get('device')
-        config_commands = request.form.get('config_commands').splitlines()
-        mode = 'live' if request.form.get('mode') == 'live' else 'mock'
-
+        config_data = request.form.get('config_data')
         try:
-            api_response = api_request('POST', '/api/config/push', json={'device': device_name, 'commands': config_commands, 'mode': mode})
-            api_response.raise_for_status()
-            result = api_response.json()
+            response = api_request('POST', '/api/push', json={'device': device_name, 'config': config_data})
+            response.raise_for_status()
+            data = response.json()
+            flash(f'Successfully pushed config to {device_name}', 'success')
+            return render_template('push.html', devices=devices_list, last_output=data.get('output'), active_tab='push')
         except requests.exceptions.RequestException as e:
-            error = f"Error pushing configuration: {e}"
+            flash(f'Error: {e}', 'danger')
 
-    return render_template("push.html", active_tab='push', devices=devices_list, error=error, result=result, restore_data=restore_data)
+    return render_template('push.html', devices=devices_list, active_tab='push')
 
 @app.route('/backups')
 @login_required
 def backups():
     """Serve the backups page and display backup history"""
-    backups_list = []
-    error = None
+    backup_list = []
     try:
         response = api_request('GET', '/api/backups')
         response.raise_for_status()
-        backups_list = response.json()
+        backup_list = response.json()
     except requests.exceptions.RequestException as e:
-        error = f"Error fetching backups: {e}"
-    
-    return render_template("backups.html", active_tab='backups', backups=backups_list, error=error)
+        flash(f'Error fetching backups: {e}', 'danger')
+    return render_template('backups.html', backups=backup_list, active_tab='backups')
 
-@app.route('/backup/<backup_id>')
+@app.route('/backup/<int:backup_id>')
 @login_required
 def backup_detail(backup_id):
     """Serve the backup detail page"""
-    backup = None
-    error = None
+    backup_data = None
     try:
         response = api_request('GET', f'/api/backup/{backup_id}')
         response.raise_for_status()
-        backup = response.json()
+        backup_data = response.json()
     except requests.exceptions.RequestException as e:
-        error = f"Error fetching backup details: {e}"
-    
-    return render_template("backup_detail.html", active_tab='backups', backup=backup, error=error)
+        flash(f'Error fetching backup details: {e}', 'danger')
+    return render_template('backup_detail.html', backup=backup_data, active_tab='backups')
 
-# ---------------------------------------------------------------------------
-# Device CRUD proxies
-# ---------------------------------------------------------------------------
-
-@app.route('/add_device', methods=['POST'])
-@login_required
-def add_device():
-    """Proxy for adding a device to the backend."""
-    try:
-        resp = api_request('POST', '/api/devices', json=request.get_json())
-        return (resp.content, resp.status_code, resp.headers.items())
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/approvals')
-@login_required
-def approvals():
-    """Serve the approvals page"""
-    return render_template('queue.html', active_tab='approvals')
-
-
-# ---------------------------------------------------------------------------
-# Baseline proposals proxies
-# ---------------------------------------------------------------------------
-
-@app.route('/api/baseline/proposals', methods=['GET'])
-@login_required
-def proposals_proxy():
-    try:
-        trailing = ('?' + request.query_string.decode()) if request.query_string else ''
-        resp = api_request('GET', f"/api/baseline/proposals{trailing}")
-        return jsonify(resp.json()), resp.status_code
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/baseline/proposals/<int:proposal_id>', methods=['PUT'])
-@login_required
-def decide_proposal_proxy(proposal_id):
-    """Proxy for manually saving a baseline proposal to the backend."""
-    try:
-        resp = api_request('PUT', f'/api/baseline/proposals/{proposal_id}', json=request.get_json())
-        return jsonify(resp.json()), resp.status_code
-    except requests.exceptions.RequestException as e:
-        try:
-            error_json = e.response.json()
-            return jsonify(error_json), e.response.status_code
-        except (AttributeError, ValueError):
-            return jsonify({'error': str(e)}), 500
-
-
-# ---------------------------------------------------------------------------
-# Backups proxy
-# ---------------------------------------------------------------------------
-
-@app.route('/api/backups/save', methods=['POST'])
-@login_required
-def save_backup_proxy():
-    """Proxy for manually saving a backup to the backend."""
-    try:
-        resp = api_request('POST', '/api/backups/save', json=request.get_json())
-        return jsonify(resp.json()), resp.status_code
-    except requests.exceptions.RequestException as e:
-        try:
-            error_json = e.response.json()
-            return jsonify(error_json), e.response.status_code
-        except (AttributeError, ValueError):
-            return jsonify({'error': str(e)}), 500
-
-
-@app.route('/device/delete/<string:device_name>', methods=['DELETE'])
-@login_required
-def delete_device(device_name):
-    """Proxy for deleting a device from the backend."""
-    try:
-        resp = api_request('DELETE', f'/api/device/{device_name}')
-        return jsonify(resp.json()), resp.status_code
-    except requests.exceptions.RequestException as e:
-        # Attempt to parse the error response from backend, or return a generic error
-        try:
-            error_json = e.response.json()
-            return jsonify(error_json), e.response.status_code
-        except (AttributeError, ValueError):
-            return jsonify({'error': str(e)}), 500
-
-
-
-
-@app.route('/devices')
+@app.route('/devices', methods=['GET', 'POST'])
 @login_required
 def devices():
-    """Serve the devices page and display a list of devices"""
+    if request.method == 'POST':
+        # Handle add device
+        device_data = {
+            'name': request.form['name'],
+            'ip': request.form['ip'],
+            'device_type': request.form['device_type'],
+            'username': request.form['username'],
+            'password': request.form['password'],
+        }
+        try:
+            response = api_request('POST', '/api/devices', json=device_data)
+            response.raise_for_status()
+            flash('Device added successfully!', 'success')
+        except requests.exceptions.RequestException as e:
+            flash(f'Error adding device: {e}', 'danger')
+        return redirect(url_for('devices'))
+
     devices_list = []
-    error = None
     try:
         response = api_request('GET', '/api/devices')
-        response.raise_for_status()  # Raise an exception for bad status codes
-        devices_list = response.json()
+        response.raise_for_status()
+        devices_list = response.json().get('devices', [])
     except requests.exceptions.RequestException as e:
-        error = f"Error fetching devices: {e}"
+        flash(f'Error fetching devices: {e}', 'danger')
     
-    return render_template("devices.html", title="Devices - Net-Swift Orchestrator", active_tab='devices', devices=devices_list, error=error)
-
-
-
-# ---------------------------------------------------------------------------
-# Device query proxies
-# ---------------------------------------------------------------------------
-
-@app.route('/api/devices', methods=['GET'])
-@login_required
-def api_devices_proxy():
-    """Proxy endpoint for fetching devices from backend"""
-    try:
-        response = api_request('GET', '/api/devices')
-        return response.text, response.status_code, response.headers.items()
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/events', methods=['GET'])
-@login_required
-def api_events_proxy():
-    """Proxy endpoint for fetching system events from backend"""
-    try:
-        response = api_request('GET', '/api/events')
-        return response.text, response.status_code, response.headers.items()
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/device/<string:device_name>')
-@login_required
-def api_device_proxy(device_name):
-    """Proxy endpoint for fetching a single device from backend"""
-    try:
-        response = api_request('GET', f'/api/device/{device_name}')
-        return jsonify(response.json()), response.status_code
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
-
-
-@app.route('/api/device/<string:device_name>/status', methods=['PUT'])
-@login_required
-def api_update_device_status_proxy(device_name):
-    """Proxy endpoint for updating device status"""
-    try:
-        response = api_request('PUT', f'/api/device/{device_name}/status', json=request.json)
-        return jsonify(response.json()), response.status_code
-    except requests.exceptions.RequestException as e:
-        return jsonify({'error': str(e)}), 500
-
-
-# ---------------------------------------------------------------------------
-# Start local dev server
-# ---------------------------------------------------------------------------
+    return render_template('devices.html', devices=devices_list, active_tab='devices')
 
 if __name__ == '__main__':
-    app.run(port=5051, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=5051, debug=True)
