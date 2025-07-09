@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 
+{% block title %}Dashboard - Net-Swift Orchestrator{% endblock %}
+
 {% block content %}
+<!-- Check if user is authenticated -->
+{% if username %}
 <div class="row g-4">
     <!-- System Status Card -->
     <div class="col-md-4">
@@ -70,4 +74,10 @@
         </div>
     </div>
 </div>
+{% else %}
+<!-- Redirect to login if not authenticated -->
+<script>
+    window.location.href = "{{ url_for('login') }}";
+</script>
+{% endif %}
 {% endblock %}

@@ -2,6 +2,7 @@ from flask import Flask, render_template, request, jsonify, session, redirect, u
 import requests
 import functools
 import secrets
+from datetime import datetime
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = secrets.token_hex(16)
@@ -15,13 +16,22 @@ def api_request(method, endpoint, **kwargs):
     url = f"{BACKEND_API_URL}{endpoint}"
     
     # Add auth token to headers if available
-    headers = kwargs.get('headers', {})
+    headers = kwargs.get('headers', {}) or {}
     if 'auth_token' in session:
         headers['Authorization'] = f"Bearer {session['auth_token']}"
     kwargs['headers'] = headers
     
-    # Include all backend session cookies in the request if available
+    # Create a persistent session for requests
+    s = requests.Session()
+    
+    # Set cookies explicitly on the session
     cookies = {}
+    if 'auth_token' in session:
+        cookies['auth_token'] = session['auth_token']
+    if 'username' in session:
+        cookies['username'] = session['username']
+    
+    # Include all backend session cookies in the request if available
     for key, value in session.items():
         if key.startswith('backend_'):
             # Extract the original cookie name by removing the 'backend_' prefix
@@ -36,13 +46,19 @@ def api_request(method, endpoint, **kwargs):
     print(f"API Request to {url} with headers: {headers}")
     print(f"API Request cookies: {cookies}")
     
+    # Make the request with cookies
+    for cookie_name, cookie_value in cookies.items():
+        s.cookies.set(cookie_name, cookie_value)
+    
     # Make the request
-    response = requests.request(method, url, cookies=cookies, **kwargs)
+    response = s.request(method, url, **kwargs)
     
     # Debug response
     print(f"API Response status: {response.status_code}")
     if response.status_code != 200:
         print(f"API Response error: {response.text}")
+    else:
+        print(f"API Response success: {response.text[:100]}...")
         
     return response
 
@@ -68,6 +84,10 @@ def inject_user():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle user login."""
+    # If user is already logged in, redirect to dashboard
+    if 'username' in session and 'auth_token' in session:
+        return redirect(url_for('index'))
+        
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
@@ -77,8 +97,13 @@ def login():
             response = s.post(f"{BACKEND_API_URL}/api/login", json={'username': username, 'password': password})
             
             if response.status_code == 200:
+                # Clear and regenerate the session to prevent session fixation
                 session.clear()
+                
+                # Store user info and auth token
                 session['username'] = response.json().get('username')
+                session['logged_in'] = True
+                session['login_time'] = str(datetime.now())
                 
                 # Store auth token if provided
                 if 'auth_token' in response.json():
@@ -98,12 +123,16 @@ def login():
                     print(f"Storing backend cookie: {cookie_name} = {cookie_value}")
                 
                 # Debug: Print all session data
-                print(f"Session after login: {session}")
+                print(f"Session after login: {dict(session)}")
+                
+                # Set a secure, HTTP-only cookie with the auth token for extra security
+                resp = redirect(url_for('index'))
+                resp.set_cookie('auth_token', session['auth_token'], httponly=True, samesite='Strict', max_age=3600*24)
                 
                 # Add success message
                 flash(f'Welcome back, {username}! You have successfully logged in.', 'success')
                 
-                return redirect(url_for('index'))
+                return resp
             else:
                 flash(response.json().get('error', 'Login failed.'), 'danger')
         except requests.exceptions.RequestException as e:
@@ -432,13 +461,23 @@ def devices():
 # Device query proxies
 # ---------------------------------------------------------------------------
 
-@app.route('/api/devices')
+@app.route('/api/devices', methods=['GET'])
 @login_required
 def api_devices_proxy():
     """Proxy endpoint for fetching devices from backend"""
     try:
         response = api_request('GET', '/api/devices')
-        return jsonify(response.json()), response.status_code
+        return response.text, response.status_code, response.headers.items()
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/events', methods=['GET'])
+@login_required
+def api_events_proxy():
+    """Proxy endpoint for fetching system events from backend"""
+    try:
+        response = api_request('GET', '/api/events')
+        return response.text, response.status_code, response.headers.items()
     except requests.exceptions.RequestException as e:
         return jsonify({'error': str(e)}), 500
 

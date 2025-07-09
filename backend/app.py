@@ -4,8 +4,10 @@ from flask_cors import CORS
 import os
 import json
 import logging
+import secrets
 from datetime import datetime
 import sqlite3
+import bcrypt
 from pathlib import Path
 from services.ai_agent_client import AIAgentClient
 
@@ -130,6 +132,14 @@ def init_database():
         )
     ''')
     
+    # Users table for authentication
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS users (
+            username TEXT PRIMARY KEY,
+            password TEXT NOT NULL
+        )
+    ''')
+
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS jobs (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -140,6 +150,16 @@ def init_database():
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP
         )
     ''')
+    
+    # Create default admin user if it doesn't exist
+    cursor.execute('SELECT username FROM users WHERE username = ?', ('admin',))
+    if not cursor.fetchone():
+        import bcrypt
+        # Hash password 'admin' with bcrypt
+        hashed_password = bcrypt.hashpw('admin'.encode('utf-8'), bcrypt.gensalt())
+        cursor.execute('INSERT INTO users (username, password) VALUES (?, ?)',
+                       ('admin', hashed_password))
+        print("Default admin user created with username 'admin' and password 'admin'")
     
     conn.commit()
     conn.close()
@@ -414,6 +434,46 @@ def test_connectivity():
         logger.error(f"Connectivity test error: {str(e)}")
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
 
+# -----------------------------
+# User Authentication
+# -----------------------------
+
+@app.route('/api/register', methods=['POST'])
+def api_register():
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({'error': 'username and password required'}), 400
+    try:
+        conn = sqlite3.connect('network_automation.db')
+        c = conn.cursor()
+        hashed_password = bcrypt.hashpw(password.encode('utf-8'), bcrypt.gensalt())
+        c.execute('INSERT INTO users(username, password) VALUES(?, ?)', (username, hashed_password))
+        conn.commit()
+        conn.close()
+        return jsonify({'message': 'registered', 'username': username}), 201
+    except sqlite3.IntegrityError:
+        return jsonify({'error': 'user already exists'}), 409
+
+@app.route('/api/login', methods=['POST'])
+def api_login():
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    password = data.get('password')
+    if not username or not password:
+        return jsonify({'error': 'username and password required'}), 400
+    conn = sqlite3.connect('network_automation.db')
+    c = conn.cursor()
+    c.execute('SELECT password FROM users WHERE username = ?', (username,))
+    row = c.fetchone()
+    conn.close()
+    if row and bcrypt.checkpw(password.encode('utf-8'), row[0]):
+        token = secrets.token_hex(16)
+        return jsonify({'username': username, 'auth_token': token})
+    return jsonify({'error': 'invalid credentials'}), 401
+
+# Existing backups route remains below
 @app.route('/api/backups', methods=['GET'])
 @app.route('/api/ai/health', methods=['GET'])
 def ai_agent_health():
@@ -442,6 +502,57 @@ def ai_analyze_config():
     result = ai_agent.analyze_config(data['config_text'], data.get('device_name'))
     return jsonify(result)
 
+@app.route('/api/events', methods=['GET'])
+def get_events():
+    """Retrieve recent system events for the dashboard"""
+    try:
+        conn = sqlite3.connect('network_automation.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        
+        # First check if the events table exists
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='events'")
+        if not cursor.fetchone():
+            # Create events table if it doesn't exist
+            cursor.execute("""
+                CREATE TABLE events (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    timestamp TEXT,
+                    device_name TEXT,
+                    event_type TEXT,
+                    description TEXT
+                )
+            """)
+            conn.commit()
+            
+            # Add some sample events data
+            current_time = datetime.now().isoformat()
+            sample_events = [
+                (current_time, 'R15', 'CONFIG_BACKUP', 'Configuration backup successful'),
+                (current_time, 'R16', 'CONNECTIVITY', 'Device connectivity restored'),
+                (current_time, 'System', 'STARTUP', 'Net-Swift Orchestrator services started')
+            ]
+            cursor.executemany(
+                "INSERT INTO events (timestamp, device_name, event_type, description) VALUES (?, ?, ?, ?)",
+                sample_events
+            )
+            conn.commit()
+        
+        # Get events sorted by timestamp
+        cursor.execute("""
+            SELECT id, timestamp, device_name, event_type, description 
+            FROM events 
+            ORDER BY timestamp DESC 
+            LIMIT 20
+        """)
+        events = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(events)
+    except Exception as e:
+        logger.error(f"Error fetching events: {e}")
+        return jsonify({"error": str(e)}), 500
+
+@app.route('/api/backups', methods=['GET'])
 def get_backups():
     """Retrieve all configuration backups from the database"""
     try:
@@ -469,7 +580,7 @@ if __name__ == '__main__':
     print("📡 Management IP: 172.16.39.102")
     print("🖥️  Available devices: R15 (port 32783), R16 (port 32773)")
     print("⚠️  R17-R20 ports need to be configured")
-    print("🌐 Web interface: http://localhost:5000")
-    print("🔌 API base: http://localhost:5000/api")
+    print("🌐 Web interface: http://localhost:5051")
+    print("🔌 API base: http://localhost:5051/api")
     
     app.run(debug=True, host='0.0.0.0', port=5050)
