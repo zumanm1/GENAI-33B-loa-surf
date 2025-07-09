@@ -1,5 +1,5 @@
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
-from rag_processor import process_and_store_documents, handle_rag_query, handle_agent_query
+from rag_processor import process_and_store_documents, handle_rag_query, handle_agent_query, handle_agentic_rag_query
 import requests
 import functools
 import secrets
@@ -217,6 +217,12 @@ def chat():
         api_session = requests.Session()
         api_session.cookies.set('session', session.get('backend_session_cookie'))
         response = handle_agent_query(query, api_session)
+        return jsonify({'response': response})
+
+    if mode == 'agentic_rag':
+        api_session = requests.Session()
+        api_session.cookies.set('session', session.get('backend_session_cookie'))
+        response = handle_agentic_rag_query(query, api_session)
         return jsonify({'response': response})
     
     # Placeholder for other modes

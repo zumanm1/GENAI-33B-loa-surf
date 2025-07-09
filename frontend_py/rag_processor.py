@@ -104,6 +104,72 @@ def get_list_of_devices(api_session: requests.Session) -> str:
         return "I was unable to fetch the list of devices from the backend."
 
 
+def propose_config_change(hostname: str, config_changes: str, api_session: requests.Session) -> str:
+    """Tool for the Agentic RAG. Proposes a configuration change for a specific device."""
+    try:
+        payload = {
+            'hostname': hostname,
+            'proposed_config': config_changes,
+            'description': 'Proposed by GENAI Networks Engineer'
+        }
+        response = api_session.post("http://127.0.0.1:5050/api/baseline/proposals", json=payload)
+        response.raise_for_status()
+        return f"Successfully proposed configuration changes for {hostname}. Awaiting human review."
+    except requests.RequestException as e:
+        return f"Failed to propose changes for {hostname}: {e}"
+
+def handle_agentic_rag_query(query, api_session: requests.Session):
+    """Handle a query using an agent that can both retrieve information and use tools."""
+    try:
+        llm = ChatOllama(model="llama2")
+        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
+        vector_store = FAISS.load_local(VECTOR_STORE_INDEX, embeddings, allow_dangerous_deserialization=True)
+
+        # Create a RAG tool
+        rag_chain = RetrievalQA.from_chain_type(
+            llm=llm,
+            chain_type="stuff",
+            retriever=vector_store.as_retriever()
+        )
+
+        from functools import partial
+        tools = [
+            Tool(
+                name="KnowledgeBaseSearch",
+                func=rag_chain.invoke,
+                description="Use this to answer questions based on uploaded documents. Input should be a user's question."
+            ),
+            Tool(
+                name="GetListOfDevices",
+                func=partial(get_list_of_devices, api_session=api_session),
+                description="Use this to get the hostnames of all available network devices."
+            ),
+            Tool(
+                name="GetDeviceConfig",
+                func=partial(get_device_config, api_session=api_session),
+                description="Use this to get the running configuration for a specific network device. Requires hostname."
+            ),
+            Tool(
+                name="ProposeConfigChange",
+                func=partial(propose_config_change, api_session=api_session),
+                description="Use this to propose a new configuration for a device. Requires hostname and the new config snippet."
+            )
+        ]
+
+        agent = initialize_agent(
+            tools,
+            llm,
+            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+            verbose=True
+        )
+
+        response = agent.invoke({"input": query})
+        return response.get('output', 'The agent did not return a response.')
+
+    except Exception as e:
+        print(f"An error occurred during Agentic RAG query processing: {e}")
+        return "An error occurred. Ensure Ollama is running and documents have been uploaded."
+
 def handle_agent_query(query, api_session: requests.Session):
     """Handle a user query using the AI Agent."""
     try:
@@ -123,6 +189,7 @@ def handle_agent_query(query, api_session: requests.Session):
                 name="GetDeviceConfig",
                 func=get_device_config_with_session,
                 description="Use this tool to get the running configuration for a specific network device. It requires a single argument: the hostname of the device."
+
             )
         ]
 
