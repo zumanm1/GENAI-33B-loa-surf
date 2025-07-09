@@ -5,6 +5,8 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader, TextLoader
 from langchain_community.chat_models import ChatOllama
 from langchain.chains import RetrievalQA
+from langchain.agents import AgentType, initialize_agent, Tool
+import requests
 
 VECTOR_STORE_PATH = 'vector_store'
 if not os.path.exists(VECTOR_STORE_PATH):
@@ -76,6 +78,46 @@ def handle_rag_query(query):
         print(f"An error occurred during RAG query processing: {e}")
         return "An error occurred while processing your request. Please ensure Ollama is running and the model is available."
 
+
+def get_list_of_devices():
+    """Tool for the AI agent. Fetches the list of network devices from the backend API."""
+    try:
+        response = requests.get("http://127.0.0.1:5050/api/devices")
+        response.raise_for_status() # Raise an exception for bad status codes
+        devices = response.json()
+        # Format the output for the LLM
+        return f"Here are the devices I can interact with: {', '.join([d['hostname'] for d in devices])}"
+    except requests.RequestException as e:
+        print(f"API request failed: {e}")
+        return "I was unable to fetch the list of devices from the backend."
+
+
+def handle_agent_query(query):
+    """Handle a user query using the AI Agent."""
+    try:
+        llm = ChatOllama(model="llama2")
+        tools = [
+            Tool(
+                name="GetListOfDevices",
+                func=get_list_of_devices,
+                description="Use this tool to get the hostnames of all available network devices."
+            )
+        ]
+
+        # Initialize the agent
+        agent = initialize_agent(
+            tools,
+            llm,
+            agent=AgentType.ZERO_SHOT_REACT_DESCRIPTION,
+            verbose=True # Set to True for debugging to see the agent's thoughts
+        )
+
+        response = agent.invoke({"input": query})
+        return response.get('output', 'The agent did not return a response.')
+
+    except Exception as e:
+        print(f"An error occurred during Agent query processing: {e}")
+        return "An error occurred while processing your agent request. Please ensure Ollama is running."
 
 def process_and_store_documents(file_paths):
     """Main function to process uploaded files and update the vector store."""
