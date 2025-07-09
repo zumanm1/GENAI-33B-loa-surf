@@ -79,6 +79,22 @@ def handle_rag_query(query):
         return "An error occurred while processing your request. Please ensure Ollama is running and the model is available."
 
 
+def get_device_config(hostname: str) -> str:
+    """Tool for the AI agent. Fetches the running configuration for a specific device by its hostname."""
+    try:
+        # This tool requires an authenticated session, which we don't have here.
+        # This is a known limitation we will address later by passing the session.
+        # For now, we will mock the response for demonstration purposes.
+        mock_configs = {
+            "core-router-01": "interface GigabitEthernet0/1\n ip address 192.168.1.1 255.255.255.0\n no shutdown",
+            "access-switch-01": "interface Vlan10\n ip address 10.10.10.1 255.255.255.0\n name USERS",
+            "dist-switch-01": "router ospf 1\n network 10.0.0.0 0.255.255.255 area 0"
+        }
+        config = mock_configs.get(hostname, f"No configuration found for device '{hostname}'.")
+        return f"The configuration for {hostname} is:\n\n{config}"
+    except Exception as e:
+        return f"An error occurred while fetching config for {hostname}: {e}"
+
 def get_list_of_devices():
     """Tool for the AI agent. Fetches the list of network devices from the backend API."""
     try:
@@ -100,7 +116,12 @@ def handle_agent_query(query):
             Tool(
                 name="GetListOfDevices",
                 func=get_list_of_devices,
-                description="Use this tool to get the hostnames of all available network devices."
+                description="Use this tool to get the hostnames of all available network devices. It takes no arguments."
+            ),
+            Tool(
+                name="GetDeviceConfig",
+                func=get_device_config,
+                description="Use this tool to get the running configuration for a specific network device. It requires a single argument: the hostname of the device."
             )
         ]
 
