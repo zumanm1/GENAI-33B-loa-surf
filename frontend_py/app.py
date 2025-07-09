@@ -465,4 +465,4 @@ def api_update_device_status_proxy(device_name):
 # ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    app.run(port=5006, debug=True)
+    app.run(port=5000, debug=True)
