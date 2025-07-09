@@ -9,7 +9,7 @@
             <div class="card-body p-5">
                 <h2 class="card-title text-center mb-4">Login</h2>
                 
-                <form method="POST" action="{{ url_for('login') }}">
+                <form method="POST" action="{{ url_for('login') }}" id="loginForm">
                     <div class="mb-3">
                         <label for="username" class="form-label">Username</label>
                         <input type="text" class="form-control" id="username" name="username" required>
@@ -29,4 +29,47 @@
         </div>
     </div>
 </div>
+
+<!-- Status message overlay that appears during login process -->
+<div id="loginStatusOverlay" class="position-fixed top-0 start-0 w-100 h-100 d-none" style="background-color: rgba(0,0,0,0.5); z-index: 1050;">
+    <div class="position-absolute top-50 start-50 translate-middle bg-white p-4 rounded shadow">
+        <div class="d-flex align-items-center">
+            <div class="spinner-border text-primary me-3" role="status">
+                <span class="visually-hidden">Loading...</span>
+            </div>
+            <div id="loginStatusMessage">Authenticating...</div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const form = document.getElementById('loginForm');
+        const overlay = document.getElementById('loginStatusOverlay');
+        const statusMsg = document.getElementById('loginStatusMessage');
+        
+        form.addEventListener('submit', function(e) {
+            // Show loading overlay
+            overlay.classList.remove('d-none');
+            
+            // Submit form normally and let server handle redirect
+            // No need to prevent default, we want the form to submit
+            
+            // Display message during submission
+            statusMsg.textContent = 'Authenticating...';
+            
+            // Set timeout to update message if taking longer
+            setTimeout(() => {
+                if (!overlay.classList.contains('d-none')) {
+                    statusMsg.textContent = 'Verifying credentials...';
+                }
+            }, 1000);
+            
+            // Safety timeout to hide overlay if something goes wrong
+            setTimeout(() => {
+                overlay.classList.add('d-none');
+            }, 10000);
+        });
+    });
+</script>
 {% endblock %}

@@ -20,6 +20,9 @@ export BACKEND_URL="http://127.0.0.1:5050"
 export FRONTEND_URL="http://127.0.0.1:5051"
 export AI_AGENT_URL="http://127.0.0.1:5004"
 
+# Default to PRODUCTION mode unless specified otherwise
+export RUN_MODE=${RUN_MODE:-PRODUCTION}
+
 # Ensure we're in the project root directory
 cd "$(dirname "$0")"
 
@@ -107,15 +110,43 @@ start_frontend() {
 start_ai() {
     echo -e "\n${BOLD}Starting AI service on port ${AI_PORT}...${NC}"
     
-    # Navigate to backend_mock directory where the mock AI service is located
-    cd backend_mock
-    
-    # Start mock AI service
-    python mock_ai_service.py &
-    AI_PID=$!
-    
-    cd ..
-    echo -e "${GREEN}AI service (mock) started with PID ${AI_PID}${NC}"
+    # Check if we're in test mode
+    if [ "$RUN_MODE" = "TEST" ]; then
+        echo "Running in TEST mode, using mock AI service"
+        
+        # Navigate to backend_mock directory where the mock AI service is located
+        cd backend_mock
+        
+        # Start mock AI service
+        python mock_ai_service.py &
+        AI_PID=$!
+        
+        cd ..
+        echo -e "${GREEN}AI service (mock) started with PID ${AI_PID}${NC}"
+    else
+        echo "Running in PRODUCTION mode, using real AI service"
+        
+        # Check if real AI service directory exists
+        if [ -d "ai_service" ]; then
+            cd ai_service
+            
+            # Use gunicorn for production
+            python -m gunicorn app:app -b 0.0.0.0:${AI_PORT} --workers 2 &
+            AI_PID=$!
+            
+            cd ..
+            echo -e "${GREEN}AI service (production) started with PID ${AI_PID}${NC}"
+        else
+            echo -e "${RED}Error: ai_service directory not found. Falling back to mock service.${NC}"
+            
+            # Fallback to mock service
+            cd backend_mock
+            python mock_ai_service.py &
+            AI_PID=$!
+            cd ..
+            echo -e "${YELLOW}AI service (mock - fallback) started with PID ${AI_PID}${NC}"
+        fi
+    fi
 }
 
 # Function to check service health

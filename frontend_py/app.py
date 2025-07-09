@@ -99,7 +99,10 @@ def login():
                 
                 # Debug: Print all session data
                 print(f"Session after login: {session}")
-                    
+                
+                # Add success message
+                flash(f'Welcome back, {username}! You have successfully logged in.', 'success')
+                
                 return redirect(url_for('index'))
             else:
                 flash(response.json().get('error', 'Login failed.'), 'danger')
@@ -150,6 +153,8 @@ def index():
         dev_resp = api_request('GET', '/api/devices', timeout=3)
         dev_resp.raise_for_status()
         devices = dev_resp.json()
+        if isinstance(devices, dict) and 'devices' in devices:
+            devices = devices['devices']
         total_devices = len(devices)
         online_devices = sum(1 for d in devices if d.get('status') == 'online')
     except requests.exceptions.RequestException as e:
@@ -465,4 +470,4 @@ def api_update_device_status_proxy(device_name):
 # ---------------------------------------------------------------------------
 
 if __name__ == '__main__':
-    app.run(port=5000, debug=True)
+    app.run(port=5051, debug=True, threaded=True)
