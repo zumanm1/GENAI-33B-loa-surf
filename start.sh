@@ -18,7 +18,7 @@ echo -e "${BOLD}=== Net-Swift Orchestrator Startup ===${NC}"
 # Set environment variables
 export BACKEND_URL="http://127.0.0.1:5050"
 export FRONTEND_URL="http://127.0.0.1:5051"
-export AI_AGENT_URL="http://127.0.0.1:5052"
+export AI_AGENT_URL="http://127.0.0.1:5004"
 
 # Ensure we're in the project root directory
 cd "$(dirname "$0")"
@@ -26,7 +26,7 @@ cd "$(dirname "$0")"
 # Define critical ports
 BACKEND_PORT=5050
 FRONTEND_PORT=5051
-AI_PORT=5052
+AI_PORT=5004
 
 # Function to check and clean ports
 cleanup_ports() {
