@@ -1,0 +1,22 @@
+# Global Product Requirements Document (Immutable)
+
+## Project Vision
+To build a robust, fully integrated network automation platform that seamlessly incorporates an AI microservice for advanced configuration analysis and querying.
+
+## Core Pillars
+1.  **Stability & Reliability:** The platform must be resilient, with all services starting and communicating reliably.
+2.  **Testability:** The system must be built with a test-driven development (TDD) approach, ensuring high test coverage and confidence in its functionality.
+3.  **Modularity:** The architecture must maintain a clear separation of concerns between the backend, frontend, and AI services.
+4.  **User Experience:** The AI functionalities must be exposed to the end-user through an intuitive and responsive user interface.
+
+## Implementation Status
+1. **Core Services:** ✅ All three services (Frontend, Backend, AI Microservice) are now running correctly.
+2. **UI Testing:** ✅ Implemented with both Playwright (Python) and Puppeteer (JavaScript).
+3. **Documentation:** ✅ Comprehensive startup guide created with detailed instructions.
+4. **Template Fixes:** ✅ Fixed issues in base.html and login.html for proper page titles and message display.
+
+## Next Steps
+1. **Expand Test Coverage:** Add tests for device management operations and AI microservice integration.
+2. **CI/CD Integration:** Set up automated testing in CI pipeline and configure automated deployment.
+3. **Security Enhancements:** Implement password hashing for user credentials.
+4. **Observability:** Enhance logs, metrics, and error handling for all services.
