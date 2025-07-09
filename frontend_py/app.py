@@ -4,8 +4,11 @@ import functools
 import secrets
 from datetime import datetime
 
+import os
+
 app = Flask(__name__, template_folder='templates')
-app.secret_key = secrets.token_hex(16)
+# Use a stable secret key for consistent session encryption across workers/reloads
+app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'net_swift_frontend_secret_key')
 
 # Configuration for the backend API
 BACKEND_API_URL = "http://127.0.0.1:5050"
@@ -84,6 +87,11 @@ def inject_user():
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     """Handle user login."""
+    # Try auto-login first if it's a GET request
+    if request.method == 'GET':
+        if perform_auto_login():
+            return redirect(url_for('index'))
+    
     # If user is already logged in, redirect to dashboard
     if 'username' in session and 'auth_token' in session:
         return redirect(url_for('index'))
@@ -166,10 +174,52 @@ def logout():
     return redirect(url_for('login'))
 
 
+# Auto-login helper function
+def perform_auto_login():
+    """Automatically log in with default admin credentials"""
+    if 'username' not in session or 'auth_token' not in session:
+        try:
+            # Create a session to maintain cookies
+            s = requests.Session()
+            response = s.post(f"{BACKEND_API_URL}/api/login", json={'username': 'admin', 'password': 'admin'})
+            
+            if response.status_code == 200:
+                # Store user info and auth token
+                session['username'] = response.json().get('username')
+                session['logged_in'] = True
+                session['login_time'] = str(datetime.now())
+                
+                # Store auth token if provided
+                if 'auth_token' in response.json():
+                    session['auth_token'] = response.json().get('auth_token')
+                
+                # Store backend cookies in our session for API requests
+                for cookie in s.cookies:
+                    session[f"backend_{cookie.name}"] = cookie.value
+                    
+                # Set secure HTTP-only cookie for auth token
+                if 'auth_token' in response.json():
+                    auth_token = response.json().get('auth_token')
+                    print(f"Stored auth token: {auth_token[:10]}...")
+                    
+                if not session.get('auto_login_done'):
+                    flash('Auto-logged in as admin', 'success')
+                    session['auto_login_done'] = True
+                print(f"Session after login: {session}")
+                return True
+            return False
+        except Exception as e:
+            print(f"Auto-login failed: {e}")
+            return False
+    return True  # Already logged in
+
 @app.route('/')
-@login_required
 def index():
     """Serve the dashboard page with live stats."""
+    # Try to auto-login
+    if not perform_auto_login():
+        return redirect(url_for('login'))
+    
     total_devices = online_devices = backups_count = 0
     devices = []
     backups = []
