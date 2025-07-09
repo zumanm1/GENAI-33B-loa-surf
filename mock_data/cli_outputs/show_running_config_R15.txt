@@ -1,0 +1,18 @@
+!
+version 15.2
+service timestamps debug datetime msec
+service timestamps log datetime msec
+hostname R15
+!
+interface GigabitEthernet0/0
+ ip address 10.0.0.1 255.255.255.0
+ no shutdown
+!
+interface Loopback0
+ ip address 1.1.1.1 255.255.255.255
+!
+line vty 0 4
+ password cisco
+ login
+!
+end

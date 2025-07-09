@@ -1,0 +1,4 @@
+Interface              IP-Address      OK? Method Status                Protocol
+Gi0/0                  10.0.0.1        YES NVRAM  up                    up
+Gi0/1                  unassigned      YES unset  administratively down down
+Loopback0              1.1.1.1         YES NVRAM  up                    up

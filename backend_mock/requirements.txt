@@ -1,0 +1,7 @@
+Flask
+Flask-Cors
+netmiko
+napalm
+werkzeug
+requests
+pytest

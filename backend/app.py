@@ -7,16 +7,48 @@ import logging
 from datetime import datetime
 import sqlite3
 from pathlib import Path
+from services.ai_agent_client import AIAgentClient
 
-# Network automation imports
-from netmiko import ConnectHandler
-from nornir import InitNornir
-from nornir.core.task import Task, Result
-from nornir_netmiko.tasks import netmiko_send_command
-from nornir_napalm.tasks import napalm_get
-from napalm import get_network_driver
-from pyats.topology import loader
-from genie.testbed import load
+# Network automation imports (lazy-loaded inside functions to speed up startup)
+ConnectHandler = None
+InitNornir = None
+napalm_get = None
+get_network_driver = None
+loader = None
+load = None
+
+# Helper to lazily import heavy libraries only when needed
+def _lazy_import_network_libs():
+    global ConnectHandler, InitNornir, napalm_get, get_network_driver, loader, load
+    if ConnectHandler is None:
+        try:
+            from netmiko import ConnectHandler as _CH
+            ConnectHandler = _CH
+        except ImportError:
+            pass
+    if InitNornir is None:
+        try:
+            from nornir import InitNornir as _IN
+            InitNornir = _IN
+            from nornir_napalm.plugins.tasks import napalm_get as _NGET
+            napalm_get = _NGET
+            from nornir.core.task import Task, Result  # noqa: F401  # ensure side effect imports
+        except ImportError:
+            pass
+    if get_network_driver is None:
+        try:
+            from napalm import get_network_driver as _GND
+            get_network_driver = _GND
+        except ImportError:
+            pass
+    if loader is None or load is None:
+        try:
+            from pyats.topology import loader as _loader
+            from genie.testbed import load as _load
+            loader = _loader
+            load = _load
+        except ImportError:
+            pass
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -24,6 +56,9 @@ logger = logging.getLogger(__name__)
 
 app = Flask(__name__)
 CORS(app)
+
+# Initialize AI Agent Client
+ai_agent = AIAgentClient()
 
 # Device inventory for EVE-NG routers
 DEVICE_INVENTORY = {
@@ -123,6 +158,7 @@ def save_config_backup(device, command, output, method, parsed_data=None):
     conn.close()
 
 def retrieve_config_netmiko(device_name, command):
+    _lazy_import_network_libs()
     """Retrieve configuration using Netmiko"""
     try:
         device_info = DEVICE_INVENTORY.get(device_name)
@@ -140,6 +176,7 @@ def retrieve_config_netmiko(device_name, command):
         return {'error': str(e)}
 
 def retrieve_config_napalm(device_name, command):
+    _lazy_import_network_libs()
     """Retrieve configuration using NAPALM"""
     try:
         device_info = DEVICE_INVENTORY.get(device_name)
@@ -174,6 +211,7 @@ def retrieve_config_napalm(device_name, command):
         return {'error': str(e)}
 
 def retrieve_config_pyats(device_name, command):
+    _lazy_import_network_libs()
     """Retrieve and parse configuration using PyATS/Genie"""
     try:
         device_info = DEVICE_INVENTORY.get(device_name)
@@ -375,6 +413,49 @@ def test_connectivity():
     except Exception as e:
         logger.error(f"Connectivity test error: {str(e)}")
         return jsonify({'error': f'Internal server error: {str(e)}'}), 500
+
+@app.route('/api/backups', methods=['GET'])
+@app.route('/api/ai/health', methods=['GET'])
+def ai_agent_health():
+    """Proxy for the AI Agent's health check."""
+    health_status = ai_agent.check_health()
+    status_code = 200 if health_status.get('status') != 'unreachable' else 503
+    return jsonify(health_status), status_code
+
+@app.route('/api/ai/rag_query', methods=['POST'])
+def ai_rag_query():
+    """Expose the AI Agent's RAG query functionality."""
+    data = request.get_json()
+    if not data or 'query' not in data:
+        return jsonify({'error': 'Query is required'}), 400
+    
+    result = ai_agent.query_rag(data['query'])
+    return jsonify(result)
+
+@app.route('/api/ai/analyze_config', methods=['POST'])
+def ai_analyze_config():
+    """Expose the AI Agent's configuration analysis functionality."""
+    data = request.get_json()
+    if not data or 'config_text' not in data:
+        return jsonify({'error': 'Configuration text is required'}), 400
+
+    result = ai_agent.analyze_config(data['config_text'], data.get('device_name'))
+    return jsonify(result)
+
+def get_backups():
+    """Retrieve all configuration backups from the database"""
+    try:
+        conn = sqlite3.connect('network_automation.db')
+        conn.row_factory = sqlite3.Row
+        cursor = conn.cursor()
+        cursor.execute("SELECT id, device, command, method, timestamp, parsed_data IS NOT NULL as has_parsed_data FROM config_backups ORDER BY timestamp DESC")
+        backups = [dict(row) for row in cursor.fetchall()]
+        conn.close()
+        return jsonify(backups)
+    except Exception as e:
+        logger.error(f"Error fetching backups: {e}")
+        return jsonify({"error": str(e)}), 500
+
 
 if __name__ == '__main__':
     # Initialize database

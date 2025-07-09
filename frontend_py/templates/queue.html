@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h2 class="fw-bold mb-4">Baseline Approval Queue</h2>
+<div id="queue-error" class="alert alert-danger d-none"></div>
+<table class="table table-striped" id="queue-table">
+  <thead>
+    <tr>
+      <th>ID</th><th>Device</th><th>Proposed By</th><th>At</th><th>Comment</th><th></th>
+    </tr>
+  </thead>
+  <tbody></tbody>
+</table>
+<script>
+async function loadQueue() {
+  try {
+    const r = await fetch('/api/baseline/proposals?status=pending');
+    if(!r.ok) throw new Error('failed');
+    const data = await r.json();
+    const body = document.querySelector('#queue-table tbody');
+    body.innerHTML = '';
+    data.forEach(p => {
+      const tr = document.createElement('tr');
+      tr.innerHTML = `<td>${p.id}</td><td>${p.device_id}</td><td>${p.proposed_by}</td><td>${p.proposed_at || ''}</td><td>${p.comment || ''}</td><td><button class='btn btn-sm btn-success' onclick='decide(${p.id},"approve")'>Approve</button> <button class='btn btn-sm btn-danger' onclick='decide(${p.id},"reject")'>Reject</button></td>`;
+      body.appendChild(tr);
+    });
+  } catch(e){ document.getElementById('queue-error').classList.remove('d-none'); }
+}
+async function decide(id, action){
+  const r= await fetch(`/api/baseline/proposals/${id}`,{method:'PUT',headers:{'Content-Type':'application/json'},body:JSON.stringify({action})});
+  if(r.ok) loadQueue(); else alert('Error');
+}
+loadQueue();
+</script>
+{% endblock %}

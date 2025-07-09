@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- Control panel -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h4 class="card-title fw-bold mb-4">Push Configuration</h4>
+                <form method="POST">
+                    <!-- Device selector -->
+                    <div class="mb-3">
+                        <label for="device" class="form-label">Device</label>
+                        <select class="form-select" id="device" name="device" required>
+                        <option disabled value="">Choose...</option>
+                        {% for device in devices %}
+                        <option value="{{ device.name }}" {% if restore_data and restore_data.device == device.name %}selected{% endif %}>{{ device.name }}</option>
+                        {% endfor %}
+                    </select>
+                    </div>
+
+                    <!-- Commands textarea -->
+                    <div class="mb-3">
+                        <label for="config_commands" class="form-label">Configuration Commands</label>
+                        <textarea class="form-control font-monospace" id="config_commands" name="config_commands" rows="10" placeholder="interface Loopback0\nip address 1.1.1.1 255.255.255.255" required>{% if restore_data %}{{ restore_data.commands.strip() }}{% endif %}</textarea>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 d-flex align-items-center justify-content-center">
+                        <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-8l-4-4m0 0L8 8m4-4v12"></path></svg>
+                        Push Configuration
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output -->
+    <div class="col-lg-8">
+        {% if error %}
+            <div class="alert alert-danger">{{ error }}</div>
+        {% endif %}
+
+        <div class="card bg-dark text-white shadow-sm h-100">
+            <div class="card-header border-dark d-flex justify-content-between align-items-center">
+                <h5 class="card-title mb-0">Deployment Output</h5>
+            </div>
+            <div class="card-body" style="min-height: 300px;">
+                {% if result %}
+                    <pre class="small text-white mb-0">{{ result.output }}</pre>
+                {% else %}
+                    <div class="text-secondary text-center py-5">Output will appear here after pushing a configuration.</div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

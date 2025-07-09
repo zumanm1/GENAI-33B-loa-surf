@@ -1,0 +1,150 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+
+    <!-- Control Panel Column -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <h4 class="card-title fw-bold mb-4">Retrieve Configuration</h4>
+                <!-- Mode Switch -->
+<div class="form-check form-switch mb-4">
+  <input class="form-check-input" type="checkbox" id="liveSwitch" name="mode" value="live">
+  <label class="form-check-label" for="liveSwitch">Live Retrieval</label>
+  <small class="text-muted d-block">Unchecked = Mock (default)</small>
+</div>
+<form method="POST">
+                    <!-- Device Selector -->
+                    <div class="mb-3">
+                        <label for="device" class="form-label">Device</label>
+                        <select id="device" name="device" required class="form-select">
+                            <option disabled selected>Select a device</option>
+                            {% for device in devices %}
+                                <option value="{{ device.name }}">{{ device.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+
+                    <!-- Command Selector -->
+                    <div class="mb-3">
+                        <label for="command" class="form-label">Command</label>
+                        <select id="command" name="command" required class="form-select">
+                            <option value="show ip interface brief">Show IP Interface Brief</option>
+                            <option value="show version">Show Version</option>
+                            <option value="show running-config">Show Running Config</option>
+                            <option value="show ip route">Show IP Route</option>
+                            <option value="show interface status">Show Interface Status</option>
+                            <option value="custom">Custom Command</option>
+                        </select>
+                    </div>
+
+                    <!-- Custom Command Input (hidden by default) -->
+                    <div id="custom-command-div" class="mb-3" style="display: none;">
+                        <label for="custom_command" class="form-label">Custom Command</label>
+                        <input type="text" id="custom_command" name="custom_command" class="form-control">
+                    </div>
+
+                    <!-- Method Selector -->
+                    <div class="mb-3">
+                        <label for="method" class="form-label">Method</label>
+                        <select id="method" name="method" class="form-select">
+                            <option value="netmiko">Netmiko</option>
+                            <option value="napalm">NAPALM</option>
+                        </select>
+                    </div>
+
+                    <button type="submit" class="btn btn-primary w-100 d-flex align-items-center justify-content-center">
+                        <svg width="20" height="20" class="me-2" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"></path></svg>
+                        <span>Retrieve</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Output Column -->
+    <div class="col-lg-8">
+        {% if error %}
+            <div class="alert alert-danger" role="alert">
+                <strong>Error:</strong> {{ error }}
+            </div>
+        {% endif %}
+
+        <div class="card bg-dark text-white h-100">
+            <div class="card-header">
+                <h5 class="card-title mb-0">Configuration Output</h5>
+            </div>
+            <div class="card-body">
+                {% if result %}
+                    <pre id="config-output" class="p-3 bg-light border rounded"><code>{{ result.output }}</code></pre>
+                    {% if form_data %}
+                    <button id="save-backup-btn" class="btn btn-primary mt-3">Save to Backups</button>
+                    <div id="save-status" class="mt-2"></div>
+                    {% endif %}
+                {% else %}
+                    <div class="d-flex align-items-center justify-content-center h-100">
+                        <p class="text-muted">Output will appear here once a command is run.</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.getElementById('command').addEventListener('change', function () {
+        var customCommandDiv = document.getElementById('custom-command-div');
+        var customCommandInput = document.getElementById('custom_command');
+        if (this.value === 'custom') {
+            customCommandDiv.style.display = 'block';
+            customCommandInput.required = true;
+        } else {
+            customCommandDiv.style.display = 'none';
+            customCommandInput.required = false;
+        }
+    });
+</script>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', () => {
+    const saveBtn = document.getElementById('save-backup-btn');
+    if (saveBtn) {
+        saveBtn.addEventListener('click', () => {
+            const statusDiv = document.getElementById('save-status');
+            statusDiv.innerHTML = '<span class="text-info">Saving...</span>';
+
+            const backupData = {
+                device: '{{ form_data.device }}',
+                command: '{{ form_data.command }}',
+                method: '{{ form_data.method }}',
+                content: document.getElementById('config-output').innerText
+            };
+
+            fetch('/api/backups/save', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(backupData),
+            })
+            .then(response => {
+                if (!response.ok) {
+                    return response.json().then(err => { throw new Error(err.error || 'Server error'); });
+                }
+                return response.json();
+            })
+            .then(data => {
+                statusDiv.innerHTML = `<span class="text-success">${data.message} (ID: ${data.backup_id})</span>`;
+                saveBtn.disabled = true;
+            })
+            .catch(error => {
+                statusDiv.innerHTML = `<span class="text-danger">Error: ${error.message}</span>`;
+            });
+        });
+    }
+});
+</script>
+{% endblock %}

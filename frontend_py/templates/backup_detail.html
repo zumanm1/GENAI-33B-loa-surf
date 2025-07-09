@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="bg-white p-6 rounded-lg shadow-md border border-slate-200">
+    {% if error %}
+        <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg relative mb-6" role="alert">
+            <strong class="font-bold">Error:</strong>
+            <span class="block sm:inline">{{ error }}</span>
+        </div>
+    {% elif backup %}
+        <div class="flex justify-between items-center mb-4">
+            <h2 class="text-2xl font-bold text-slate-800">Backup Details for {{ backup.device }}</h2>
+            <a href="{{ url_for('backups') }}" class="text-blue-600 hover:text-blue-900">&larr; Back to Backups</a>
+        </div>
+        <div class="space-y-4 text-sm text-slate-600">
+            <div><strong>ID:</strong> <span class="font-mono text-slate-800">{{ backup.id }}</span></div>
+            <div><strong>Device:</strong> <span class="font-semibold text-slate-800">{{ backup.device }}</span></div>
+            <div><strong>Command:</strong> <code class="text-sm font-mono bg-slate-100 p-1 rounded">{{ backup.command }}</code></div>
+            <div><strong>Timestamp:</strong> <span class="font-mono text-slate-800">{{ backup.timestamp }}</span></div>
+            <div><strong>Method:</strong> <span class="font-mono text-slate-800">{{ backup.method }}</span></div>
+        </div>
+        <div class="mt-6 bg-slate-800 rounded-lg shadow-md border border-slate-700">
+            <div class="flex justify-between items-center p-4 border-b border-slate-700">
+                <h3 class="text-lg font-bold text-slate-200">Configuration Content</h3>
+            </div>
+            <div class="p-4">
+                <pre class="text-sm text-slate-200 whitespace-pre-wrap font-mono"><code>{{ backup.content }}</code></pre>
+            </div>
+        </div>
+        <form action="{{ url_for('push') }}" method="GET" class="d-inline">
+            <input type="hidden" name="device" value="{{ backup.device }}">
+            <input type="hidden" name="commands" value="{{ backup.content }}">
+            <button type="submit" class="btn btn-primary">Restore from this Backup</button>
+        </form>
+    {% else %}
+        <div class="text-center py-16">
+            <p class="text-slate-500">Backup not found.</p>
+            <a href="{{ url_for('backups') }}" class="btn btn-secondary">Back to List</a>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

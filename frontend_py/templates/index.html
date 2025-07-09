@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="row g-4">
+    <!-- System Status Card -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="p-3 bg-success-subtle rounded-circle me-3">
+                    <svg class="text-success" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <h5 class="card-title fw-semibold mb-1">System Status</h5>
+                    <p class="card-text text-muted">{{ online_devices }} / {{ total_devices }} devices online</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Managed Devices Card -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="p-3 bg-primary-subtle rounded-circle me-3">
+                    <svg class="text-primary" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 12h14M5 12a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v4a2 2 0 01-2 2M5 12a2 2 0 00-2 2v4a2 2 0 002 2h14a2 2 0 002-2v-4a2 2 0 00-2-2m-2-4h.01M17 16h.01"></path></svg>
+                </div>
+                <div>
+                    <h5 class="card-title fw-semibold mb-1">Managed Devices</h5>
+                    <p class="card-text text-muted">{{ total_devices }} devices managed</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Recent Activity Card -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body d-flex align-items-center">
+                <div class="p-3 bg-info-subtle rounded-circle me-3">
+                    <svg class="text-info" width="24" height="24" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <div>
+                    <h5 class="card-title fw-semibold mb-1">Recent Activity</h5>
+                    <p class="card-text text-muted">{{ backups_count }} backups stored</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Event Log Card -->
+    <div class="col-md-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-body">
+                <h5 class="card-title fw-semibold mb-1">Event Log</h5>
+                {% if error_events %}
+                <div class="alert alert-danger">{{ error_events }}</div>
+                {% endif %}
+                <ul class="list-group list-group-flush">
+                    {% for event in events %}
+                    <li class="list-group-item">
+                        <small class="text-muted">{{ event.timestamp }}</small>
+                        <div class="fw-bold">{{ event.type|capitalize }}</div>
+                        <p class="mb-0">{{ event.message }}</p>
+                    </li>
+                    {% else %}
+                    <li class="list-group-item">No recent events.</li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
