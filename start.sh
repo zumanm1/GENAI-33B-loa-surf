@@ -107,15 +107,15 @@ start_frontend() {
 start_ai() {
     echo -e "\n${BOLD}Starting AI service on port ${AI_PORT}...${NC}"
     
-    # Navigate to AI service directory
-    cd ai_service
+    # Navigate to backend_mock directory where the mock AI service is located
+    cd backend_mock
     
-    # Start AI service
-    python app.py &
+    # Start mock AI service
+    python mock_ai_service.py &
     AI_PID=$!
     
     cd ..
-    echo -e "${GREEN}AI service started with PID ${AI_PID}${NC}"
+    echo -e "${GREEN}AI service (mock) started with PID ${AI_PID}${NC}"
 }
 
 # Function to check service health
