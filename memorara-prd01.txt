@@ -28,7 +28,7 @@ TASKS:
     blockers: []
     progress_percentage: 100
     subtasks:
-      - description: "Ensure all zombie processes are terminated and port 5004 is clear."
+      - description: "Ensure all zombie processes are terminated and port 5052 is clear."
         status: "COMPLETED"
       - description: "Launch the service using a robust method for daemonization."
         status: "COMPLETED"
@@ -122,7 +122,7 @@ DECISIONS_LOG:
         status: "NOT_STARTED"
       - description: "Verify backend /api/health returns 200."
         status: "NOT_STARTED"
-      - description: "Launch frontend_py/app.py on port 5000 with nohup and log file."
+      - description: "Launch frontend_py/app.py on port 5051 with nohup and log file."
         status: "NOT_STARTED"
       - description: "Verify frontend returns 200 on /."
         status: "NOT_STARTED"

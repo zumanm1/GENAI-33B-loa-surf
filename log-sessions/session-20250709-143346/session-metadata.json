@@ -1,0 +1,7 @@
+{
+  "timestamp": "20250709-143346",
+  "tmux_session": "net-swf",
+  "windows": [
+    "main", "app-monitor", "logs", "sys-resources", "tests"
+  ]
+}

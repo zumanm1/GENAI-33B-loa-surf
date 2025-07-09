@@ -148,6 +148,12 @@ def login():
     return render_template('login.html')
 
 
+@app.route('/GENAI_NETWORKS_ENGINEER')
+@login_required
+def genai_networks_engineer():
+    """Render the GENAI Networks Engineer chat page."""
+    return render_template('genai_engineer.html', active_tab='genai_engineer')
+
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     """Handle user registration."""

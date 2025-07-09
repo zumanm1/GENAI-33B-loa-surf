@@ -1,0 +1,28 @@
+{
+  "name": "net-swift-orchestrator",
+  "version": "1.0.0",
+  "description": "**URL**: https://lovable.dev/projects/b201ab19-422e-444d-bae5-6207db0db24a",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/zumanm1/net-swift-orchestrator.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "bugs": {
+    "url": "https://github.com/zumanm1/net-swift-orchestrator/issues"
+  },
+  "homepage": "https://github.com/zumanm1/net-swift-orchestrator#readme",
+  "dependencies": {
+    "axios": "^1.10.0",
+    "puppeteer": "^24.12.1"
+  }
+}

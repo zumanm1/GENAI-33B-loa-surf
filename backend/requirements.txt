@@ -1,4 +1,5 @@
 # Network Automation Platform Requirements
+bcrypt
 # Install with: pip install -r requirements.txt
 
 # Core Flask and web server dependencies

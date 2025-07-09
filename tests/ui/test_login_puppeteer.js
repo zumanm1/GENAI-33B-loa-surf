@@ -2,7 +2,7 @@ const puppeteer = require('puppeteer');
 const assert = require('assert');
 
 // Define the base URL for the frontend application
-const BASE_URL = 'http://127.0.0.1:5000';
+const BASE_URL = 'http://127.0.0.1:5051';
 
 const crypto = require('crypto');
 

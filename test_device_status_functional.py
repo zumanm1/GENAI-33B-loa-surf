@@ -90,7 +90,7 @@ def browser_page(check_servers):
         try:
             # Register and login
             try:
-                page.goto(f"{FRONTEND_URL}/register", timeout=5000)
+                page.goto(f"{FRONTEND_URL}/register", timeout=5051)
                 page.fill("input[name='username']", TEST_USER)
                 page.fill("input[name='password']", TEST_PASSWORD)
                 page.click("button[type='submit']")
@@ -100,11 +100,11 @@ def browser_page(check_servers):
             
             # Login
             try:
-                page.goto(f"{FRONTEND_URL}/login", timeout=5000)
+                page.goto(f"{FRONTEND_URL}/login", timeout=5051)
                 page.fill("input[name='username']", TEST_USER)
                 page.fill("input[name='password']", TEST_PASSWORD)
                 page.click("button[type='submit']")
-                page.wait_for_url(f"{FRONTEND_URL}/", timeout=5000)
+                page.wait_for_url(f"{FRONTEND_URL}/", timeout=5051)
             except Exception as e:
                 print(f"Login failed: {e}")
                 pytest.skip("Login failed, skipping browser tests")

@@ -1,12 +1,65 @@
 # Net-Swift Orchestrator - Startup Guide
 
+This guide provides the necessary steps to launch the complete Net-Swift Orchestrator application stack.
+
+## Prerequisites
+
+Ensure you have all the necessary Python packages installed from `requirements.txt`. Additionally, this setup now uses `gunicorn` as the WSGI server for the backend and frontend services for improved performance and stability.
+
+1.  **Install Dependencies:**
+    ```bash
+    pip install -r requirements.txt
+    ```
+
+2.  **Install Gunicorn:**
+    ```bash
+    pip install gunicorn
+    ```
+
+## Service Startup Sequence
+
+It is recommended to start the services in the following order. All commands should be run from the project's root directory (`net-swift-orchestrator`).
+
+### 1. AI Agent Service
+
+*   **Port:** `5052`
+*   **Command:**
+    ```bash
+    nohup python3 ai_agent_py/main.py > ai_agent.log 2>&1 &
+    ```
+
+### 2. Backend Service
+
+*   **Port:** `5050`
+*   **Command:**
+    ```bash
+    cd backend
+    nohup gunicorn --bind 0.0.0.0:5050 --workers 4 'app:app' > ../backend.log 2>&1 &
+    cd ..
+    ```
+
+### 3. Frontend Service
+
+*   **Port:** `5051`
+*   **Command:**
+    ```bash
+    cd frontend_py
+    nohup gunicorn --bind 0.0.0.0:5051 --workers 4 'app:app' > ../frontend.log 2>&1 &
+    cd ..
+    ```
+
+## Verifying the Setup
+
+After launching all services, you can check their respective log files (`ai_agent.log`, `backend.log`, `frontend.log`) for any errors. The application should be accessible at `http://127.0.0.1:5051`.
+
+
 ## Architecture Overview
 
 The application consists of three main components:
 
-1. **Frontend Service** - Flask application serving the web UI (Port 5000)
+1. **Frontend Service** - Flask application serving the web UI (Port 5051)
 2. **Backend Service** - Flask API providing device management and configuration (Port 5050)
-3. **AI Microservice** - Mock AI service for configuration analysis (Port 5004)
+3. **AI Microservice** - Mock AI service for configuration analysis (Port 5052)
 
 ## Prerequisites
 
@@ -66,7 +119,7 @@ python backend_mock/mock_ai_service.py
 
 Verify it's running:
 ```sh
-curl http://127.0.0.1:5004/health
+curl http://127.0.0.1:5052/health
 # Should return: {"status":"ok"}
 ```
 
@@ -92,7 +145,7 @@ cd net-swift-orchestrator
 python -m frontend_py.app
 ```
 
-Verify it's running by accessing http://127.0.0.1:5000/login in your browser.
+Verify it's running by accessing http://127.0.0.1:5051/login in your browser.
 
 ## Starting the Full Stack with One Command
 
@@ -106,9 +159,9 @@ cd backend && nohup python app.py > ../backend.log 2>&1 &
 cd .. && nohup python -m frontend_py.app > frontend.log 2>&1 &
 
 # Verify all services are running
-curl http://127.0.0.1:5004/health
+curl http://127.0.0.1:5052/health
 curl http://127.0.0.1:5050/api/health
-curl -s http://127.0.0.1:5000/login | head -n 5
+curl -s http://127.0.0.1:5051/login | head -n 5
 ```
 
 ## Stopping the Application Stack
@@ -141,9 +194,9 @@ If you encounter issues starting the services:
 
 1. Check if ports are already in use:
    ```sh
-   lsof -i :5000
+   lsof -i :5051
    lsof -i :5050
-   lsof -i :5004
+   lsof -i :5052
    ```
 
 2. Kill existing processes if needed:
@@ -154,12 +207,12 @@ If you encounter issues starting the services:
 3. Verify connectivity to services:
    ```sh
    # Check if ports are open
-   nc -zv 127.0.0.1 5004 5050 5000
+   nc -zv 127.0.0.1 5052 5050 5051
    
    # Check health endpoints with timeout
-   curl -m 7 http://127.0.0.1:5004/health
+   curl -m 7 http://127.0.0.1:5052/health
    curl -m 7 http://127.0.0.1:5050/api/health
-   curl -m 7 http://127.0.0.1:5000/login
+   curl -m 7 http://127.0.0.1:5051/login
    ```
 
 4. Check service logs:
@@ -173,15 +226,15 @@ If you encounter issues starting the services:
 
 The application uses the following environment variables (defaults shown):
 
-- `FRONTEND_URL=http://127.0.0.1:5000`
+- `FRONTEND_URL=http://127.0.0.1:5051`
 - `BACKEND_URL=http://127.0.0.1:5050`
-- `AI_AGENT_URL=http://127.0.0.1:5004`
+- `AI_AGENT_URL=http://127.0.0.1:5052`
 
 You can override these by setting them in your environment before starting the services.
 
 ## Service Endpoints
 
-### Frontend Service (Port 5000)
+### Frontend Service (Port 5051)
 - `/login` - Login page
 - `/register` - Registration page
 - `/` - Dashboard (requires authentication)
@@ -198,7 +251,7 @@ You can override these by setting them in your environment before starting the s
 - `/api/connectivity/test` - Test device connectivity
 - `/api/backups` - List configuration backups
 
-### AI Microservice (Port 5004)
+### AI Microservice (Port 5052)
 - `/health` - Health check endpoint
 - `/api/rag_query` - RAG query endpoint
 - `/api/analyze_config` - Configuration analysis endpoint

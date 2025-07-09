@@ -1,0 +1,56 @@
+Product Requirements Document: Feature - GENAI Networks Engineer
+
+Author: Cascade AI
+Version: 1.0
+Date: 2025-07-09
+
+1. Overview
+This document outlines the requirements for the 'GENAI Networks Engineer' feature, a sophisticated chat-based interface for the Net-Swift Orchestrator. This feature will provide users with three core capabilities: Retrieval-Augmented Generation (RAG) for querying uploaded documents, an AI Agent for interactive device information retrieval, and an Agentic RAG for executing configuration changes on network devices.
+
+2. Goals
+- To provide an intuitive, conversational interface for network management.
+- To enable quick information retrieval from technical documents.
+- To automate routine network configuration and verification tasks safely.
+- To deliver a brilliant, seamless, and powerful user experience without altering the existing application's core functionality.
+
+3. Feature Breakdown & Task Plan
+
+---------------------------------------------------------------------------------------------------
+| Priority | Task Name                      | Task Description                                                                                               | Dependencies                      | Progress Tracking |
+|----------|--------------------------------|----------------------------------------------------------------------------------------------------------------|-----------------------------------|-------------------|
+| P0       | Foundational Setup             | Create new backend/frontend routes. Add navbar link. Set up basic UI template.                                 | -                                 | [ ] Not Started   |
+| P0       | UI/UX - Chat Interface         | Build a modern, intuitive chat interface with message history, input box, and response display area.         | Foundational Setup                | [ ] Not Started   |
+| P1       | RAG - Document Upload          | Implement file upload (drag-and-drop) and storage mechanism on the backend.                                    | Foundational Setup                | [ ] Not Started   |
+| P1       | RAG - Backend Processing       | Implement document parsing, text chunking, embedding generation, and indexing into a vector store.             | RAG - Document Upload             | [ ] Not Started   |
+| P1       | RAG - Query Endpoint           | Create a backend API endpoint that takes a query, retrieves relevant context from the vector store, and returns an answer. | RAG - Backend Processing          | [ ] Not Started   |
+| P1       | UI/UX - RAG Integration        | Connect the chat UI to the RAG query endpoint to display answers based on uploaded documents.                  | UI/UX - Chat Interface, RAG - Query Endpoint | [ ] Not Started   |
+| P2       | AI Agent - Live Query          | Implement an agent that can parse natural language, run read-only commands on devices (e.g., 'show ip int brief'), and return formatted output. | Foundational Setup                | [ ] Not Started   |
+| P2       | UI/UX - AI Agent Integration   | Add a mode to the chat UI to interact with the AI Agent for live device queries.                               | UI/UX - Chat Interface, AI Agent - Live Query | [ ] Not Started   |
+| P3       | Agentic RAG - Config Push      | Implement an agent that can generate device configurations (e.g., 'create loopback 100') and push them.      | AI Agent - Live Query             | [ ] Not Started   |
+| P3       | Agentic RAG - Safety & Preview | Add a mandatory preview step before pushing any configuration. Include pre-checks (e.g., check if loopback exists). | Agentic RAG - Config Push         | [ ] Not Started   |
+| P3       | UI/UX - Agentic RAG Flow       | Design the UI for the configure -> preview -> apply workflow, including diff views and confirmation modals.      | UI/UX - AI Agent Integration, Agentic RAG - Safety & Preview | [ ] Not Started   |
+| P4       | Advanced Features              | Implement knowledge graph visualization, search/filter for chats, and config baseline queries.                 | All P0-P3 tasks complete          | [ ] Not Started   |
+---------------------------------------------------------------------------------------------------
+
+4. User Experience & Workflows
+
+4.1. Frontend Features:
+- Intuitive Chat Interface: Clean, responsive, and easy to use.
+- Document Upload: Drag-and-drop support for PDFs, TXT, and MD files.
+- Real-time Status Updates: Visual feedback for thinking, processing, and command execution.
+- Config Management UI: A clear, safe UI for previewing and applying network changes.
+
+4.2. User Workflows:
+- Document Ingestion: User uploads document -> System processes and indexes -> System confirms readiness.
+- RAG Query: User asks question -> System retrieves from docs -> System generates answer with citations.
+- AI Agent Query: User asks about live device -> Agent connects and runs command -> Agent displays formatted output.
+- Agentic RAG Operation: User requests change -> Agent generates config -> User previews/approves diff -> Agent applies config to device.
+
+5. Technical Requirements
+- Backend: Python, Flask. New dependencies for vector storage (e.g., FAISS) and PDF parsing.
+- Frontend: HTML, CSS, JavaScript, Bootstrap 5.
+- Integration: The new feature will be accessible via a new '/GENAI_NETWORKS_ENGINEER' route and will not interfere with existing functionality.
+
+6. Non-Goals
+- This feature will not support real-time collaboration between multiple users in its first version.
+- It will not replace the existing UI for device management but will supplement it with a conversational alternative.

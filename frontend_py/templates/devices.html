@@ -61,7 +61,8 @@
                     </div>
                 </div>
                 <div class="card-footer bg-white border-top-0 d-flex justify-content-end">
-                    <button class="btn btn-sm btn-outline-secondary me-2">Settings</button>
+                                        <button class="btn btn-sm btn-outline-primary me-2 ai-action-btn" data-action="analyze" data-device-name="{{ device.name }}">Analyze Config</button>
+                    <button class="btn btn-sm btn-outline-info ai-action-btn" data-action="query" data-device-name="{{ device.name }}" data-bs-toggle="modal" data-bs-target="#aiModal">Ask AI</button>
                 </div>
             </div>
         </div>
@@ -77,6 +78,24 @@
         </div>
     {% endif %}
 </div>
+<!-- AI Modal -->
+<div class="modal fade" id="aiModal" tabindex="-1" aria-labelledby="aiModalLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="aiModalLabel">AI Assistant</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body" id="aiModalBody">
+        <!-- AI content will be loaded here -->
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <!-- Add Device Modal -->
 <div class="modal fade" id="addDeviceModal" tabindex="-1" aria-labelledby="addDeviceModalLabel" aria-hidden="true">
   <div class="modal-dialog">
@@ -136,6 +155,98 @@
       errorEl.classList.remove('d-none');
     }
   });
+
+    // AI Modal Logic
+    const aiModal = new bootstrap.Modal(document.getElementById('aiModal'));
+    const aiModalBody = document.getElementById('aiModalBody');
+    const aiModalLabel = document.getElementById('aiModalLabel');
+
+    document.querySelectorAll('.ai-action-btn').forEach(button => {
+        button.addEventListener('click', async (e) => {
+            const action = e.currentTarget.dataset.action;
+            const deviceName = e.currentTarget.dataset.deviceName;
+
+            aiModalLabel.textContent = `AI Assistant - ${deviceName}`;
+            aiModalBody.innerHTML = '<div class="d-flex justify-content-center align-items-center" style="min-height: 200px;"><div class="spinner-border" role="status"><span class="visually-hidden">Loading...</span></div></div>';
+            aiModal.show();
+
+            if (action === 'analyze') {
+                handleAnalyzeAction(deviceName);
+            } else if (action === 'query') {
+                handleQueryAction(deviceName);
+            }
+        });
+    });
+
+    async function handleAnalyzeAction(deviceName) {
+        try {
+            // 1. Fetch the latest running config
+            const configResponse = await fetch('/api/config/retrieve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ device: deviceName, command: 'show running-config', method: 'netmiko', save_backup: false })
+            });
+            if (!configResponse.ok) {
+                const errorData = await configResponse.json();
+                throw new Error(errorData.error || 'Failed to retrieve config');
+            }
+            const configData = await configResponse.json();
+
+            // 2. Send config for analysis
+            const analyzeResponse = await fetch('/api/ai/analyze_config', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ config_text: configData.output, device_name: deviceName })
+            });
+            if (!analyzeResponse.ok) {
+                 const errorData = await analyzeResponse.json();
+                throw new Error(errorData.error || 'Failed to analyze config');
+            }
+            const analyzeData = await analyzeResponse.json();
+
+            // 3. Display analysis
+            aiModalBody.innerHTML = `<h5>Configuration Analysis for ${deviceName}</h5><pre><code>${analyzeData.analysis}</code></pre>`;
+
+        } catch (error) {
+            aiModalBody.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+        }
+    }
+
+    function handleQueryAction(deviceName) {
+        aiModalBody.innerHTML = `
+            <h5>Ask AI about ${deviceName}</h5>
+            <p>You can ask questions about network configurations, best practices, or troubleshooting.</p>
+            <div class="mb-3">
+                <textarea id="aiQueryInput" class="form-control" rows="3" placeholder="e.g., 'How do I configure OSPF on a Cisco router?'"></textarea>
+            </div>
+            <button id="submitAiQuery" class="btn btn-primary">Submit</button>
+            <div id="aiQueryResults" class="mt-3"></div>
+        `;
+
+        document.getElementById('submitAiQuery').addEventListener('click', async () => {
+            const query = document.getElementById('aiQueryInput').value;
+            const resultsContainer = document.getElementById('aiQueryResults');
+            resultsContainer.innerHTML = '<div class="spinner-border spinner-border-sm" role="status"><span class="visually-hidden">Loading...</span></div>';
+
+            try {
+                const response = await fetch('/api/ai/rag_query', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ query: query })
+                });
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.error || 'Query failed');
+                }
+                const data = await response.json();
+
+                resultsContainer.innerHTML = `<h6>Response:</h6><p>${data.response}</p>`;
+
+            } catch (error) {
+                resultsContainer.innerHTML = `<div class="alert alert-danger">${error.message}</div>`;
+            }
+        });
+    }
 </script>
 {% endblock %}
 

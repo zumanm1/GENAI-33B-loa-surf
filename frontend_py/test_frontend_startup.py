@@ -13,7 +13,7 @@ from backend.app import app as backend_app
 
 # --- Configuration ---
 FRONTEND_HOST = "127.0.0.1"
-FRONTEND_PORT = 5000
+FRONTEND_PORT = 5051
 BACKEND_HOST = "127.0.0.1"
 BACKEND_PORT = 5050
 

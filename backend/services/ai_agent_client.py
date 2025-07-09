@@ -13,10 +13,10 @@ class AIAgentClient:
         Initializes the client.
 
         Args:
-            base_url (str): The base URL of the AI Agent service (e.g., http://localhost:5004).
+            base_url (str): The base URL of the AI Agent service (e.g., http://localhost:5052).
                             If not provided, it will be read from the AI_AGENT_URL environment variable.
         """
-        self.base_url = base_url or os.getenv('AI_AGENT_URL', 'http://127.0.0.1:5004')
+        self.base_url = base_url or os.getenv('AI_AGENT_URL', 'http://127.0.0.1:5052')
         logger.info(f"AI Agent Client initialized for URL: {self.base_url}")
 
     def check_health(self):

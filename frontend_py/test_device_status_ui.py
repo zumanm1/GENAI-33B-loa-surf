@@ -25,7 +25,7 @@ def register_and_login(page: Page):
         try:
             # Approach 1: Standard registration and login
             try:
-                page.goto(f"{FRONTEND_URL}/register", timeout=5000)
+                page.goto(f"{FRONTEND_URL}/register", timeout=5051)
                 page.fill("input[name='username']", TEST_USER)
                 page.fill("input[name='password']", TEST_PASSWORD)
                 page.click("button[type='submit']")
@@ -34,13 +34,13 @@ def register_and_login(page: Page):
                 # User might already exist, continue to login
             
             # Go to login page
-            page.goto(f"{FRONTEND_URL}/login", timeout=5000)
+            page.goto(f"{FRONTEND_URL}/login", timeout=5051)
             page.fill("input[name='username']", TEST_USER)
             page.fill("input[name='password']", TEST_PASSWORD)
             page.click("button[type='submit']")
             
             # Wait for navigation to complete
-            page.wait_for_url(f"{FRONTEND_URL}/", timeout=5000)
+            page.wait_for_url(f"{FRONTEND_URL}/", timeout=5051)
             return  # Success
             
         except Exception as e:
@@ -51,8 +51,8 @@ def register_and_login(page: Page):
             if retry_count >= max_retries:
                 # Last attempt with alternative approach
                 try:
-                    page.goto(f"{FRONTEND_URL}/register", timeout=5000)
-                    page.wait_for_selector("form", state="visible", timeout=5000)
+                    page.goto(f"{FRONTEND_URL}/register", timeout=5051)
+                    page.wait_for_selector("form", state="visible", timeout=5051)
                     page.fill("form input[type='text']", TEST_USER)
                     page.fill("form input[type='password']", TEST_PASSWORD)
                     
@@ -63,8 +63,8 @@ def register_and_login(page: Page):
                         page.evaluate("document.querySelector('form').submit()")
                     
                     # Go to login
-                    page.goto(f"{FRONTEND_URL}/login", timeout=5000)
-                    page.wait_for_selector("form", state="visible", timeout=5000)
+                    page.goto(f"{FRONTEND_URL}/login", timeout=5051)
+                    page.wait_for_selector("form", state="visible", timeout=5051)
                     page.fill("form input[type='text']", TEST_USER)
                     page.fill("form input[type='password']", TEST_PASSWORD)
                     
@@ -94,7 +94,7 @@ def test_device_status_page_loads(page: Page):
         register_and_login(page)
         
         # Navigate to devices page
-        page.goto(f"{FRONTEND_URL}/devices", timeout=5000)
+        page.goto(f"{FRONTEND_URL}/devices", timeout=5051)
         page.wait_for_timeout(1000)  # Give page time to load
         
         # Check that we're on the devices page
@@ -133,7 +133,7 @@ def test_device_status_indicators(page: Page):
         register_and_login(page)
         
         # Navigate to devices page
-        page.goto(f"{FRONTEND_URL}/devices", timeout=5000)
+        page.goto(f"{FRONTEND_URL}/devices", timeout=5051)
         page.wait_for_timeout(1000)  # Wait for page to load
     
         # Try multiple approaches to find status indicators
@@ -175,7 +175,7 @@ def test_device_status_refresh(page: Page):
         register_and_login(page)
         
         # Navigate to devices page
-        page.goto(f"{FRONTEND_URL}/devices", timeout=5000)
+        page.goto(f"{FRONTEND_URL}/devices", timeout=5051)
         page.wait_for_timeout(2000)  # Wait longer for page to load
         
         # First verify that we have devices before refresh
@@ -266,7 +266,7 @@ def test_device_details(page: Page):
         register_and_login(page)
         
         # Navigate to devices page
-        page.goto(f"{FRONTEND_URL}/devices", timeout=5000)
+        page.goto(f"{FRONTEND_URL}/devices", timeout=5051)
         page.wait_for_timeout(1000)  # Wait for page to load
         
         # Try to find and click on a device to view details

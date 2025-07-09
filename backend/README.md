@@ -64,7 +64,7 @@ python test_api.py
 
 ### Using Netmiko
 ```bash
-curl -X POST http://localhost:5000/api/config/retrieve \
+curl -X POST http://localhost:5051/api/config/retrieve \
   -H "Content-Type: application/json" \
   -d '{
     "device": "R15",
@@ -76,7 +76,7 @@ curl -X POST http://localhost:5000/api/config/retrieve \
 
 ### Using PyATS/Genie (Parsed Output)
 ```bash
-curl -X POST http://localhost:5000/api/config/retrieve \
+curl -X POST http://localhost:5051/api/config/retrieve \
   -H "Content-Type: application/json" \
   -d '{
     "device": "R15", 
@@ -88,7 +88,7 @@ curl -X POST http://localhost:5000/api/config/retrieve \
 
 ### Using NAPALM
 ```bash
-curl -X POST http://localhost:5000/api/config/retrieve \
+curl -X POST http://localhost:5051/api/config/retrieve \
   -H "Content-Type: application/json" \
   -d '{
     "device": "R15",
@@ -203,4 +203,4 @@ This backend is designed to work with the React frontend. Key integration points
 - **Error Handling**: Consistent error response format
 - **Status Codes**: Standard HTTP status codes for proper frontend handling
 
-Start the backend server and point your frontend to `http://localhost:5000/api` for all API calls.
+Start the backend server and point your frontend to `http://localhost:5051/api` for all API calls.

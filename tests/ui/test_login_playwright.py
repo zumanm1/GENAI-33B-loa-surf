@@ -2,7 +2,7 @@ import re
 from playwright.sync_api import Page, expect
 
 # Define the base URL for the frontend application
-BASE_URL = "http://127.0.0.1:5000"
+BASE_URL = "http://127.0.0.1:5051"
 
 import secrets
 

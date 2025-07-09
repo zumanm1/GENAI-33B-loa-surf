@@ -110,42 +110,30 @@ start_frontend() {
 start_ai() {
     echo -e "\n${BOLD}Starting AI service on port ${AI_PORT}...${NC}"
     
-    # Check if we're in test mode
-    if [ "$RUN_MODE" = "TEST" ]; then
-        echo "Running in TEST mode, using mock AI service"
+    # Get the base directory
+    BASE_DIR="$(pwd)"
+    
+    # Start AI service based on RUN_MODE
+    if [ "$RUN_MODE" = "PRODUCTION" ]; then
+        echo "Running in PRODUCTION mode, using real AI service"
+        cd "$BASE_DIR/ai_service"
         
-        # Navigate to backend_mock directory where the mock AI service is located
-        cd backend_mock
+        # Use gunicorn for production-grade stability
+        gunicorn --bind 0.0.0.0:${AI_PORT} --workers 2 'app:app' &
+        AI_PID=$!
+        
+        cd "$BASE_DIR"
+        echo -e "${GREEN}AI service (real) started with PID ${AI_PID}${NC}"
+    else
+        echo "Running in TEST mode, using mock AI service"
+        cd "$BASE_DIR/backend_mock"
         
         # Start mock AI service
         python mock_ai_service.py &
         AI_PID=$!
         
-        cd ..
+        cd "$BASE_DIR"
         echo -e "${GREEN}AI service (mock) started with PID ${AI_PID}${NC}"
-    else
-        echo "Running in PRODUCTION mode, using real AI service"
-        
-        # Check if real AI service directory exists
-        if [ -d "ai_service" ]; then
-            cd ai_service
-            
-            # Use gunicorn for production
-            python -m gunicorn app:app -b 0.0.0.0:${AI_PORT} --workers 2 &
-            AI_PID=$!
-            
-            cd ..
-            echo -e "${GREEN}AI service (production) started with PID ${AI_PID}${NC}"
-        else
-            echo -e "${RED}Error: ai_service directory not found. Falling back to mock service.${NC}"
-            
-            # Fallback to mock service
-            cd backend_mock
-            python mock_ai_service.py &
-            AI_PID=$!
-            cd ..
-            echo -e "${YELLOW}AI service (mock - fallback) started with PID ${AI_PID}${NC}"
-        fi
     fi
 }
 

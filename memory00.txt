@@ -7,7 +7,7 @@ The system is a distributed application composed of three primary, decoupled ser
 
 1.  **Backend Orchestrator (`backend/app.py`):** A powerful Flask API server that acts as the brain of the operation. It handles all network device interactions, manages a persistent database, and serves as the single point of contact for the frontend.
 2.  **Frontend UI Server (`frontend_py/app.py`):** A lightweight Flask application whose sole purposes are to serve the HTML/JavaScript user interface and to act as a secure, authenticated proxy for all requests heading to the Backend Orchestrator.
-3.  **AI Microservice (`backend_mock/mock_ai_service.py`):** A Flask service running on port 5004 that provides mock AI capabilities for development and testing, including configuration analysis and RAG queries.
+3.  **AI Microservice (`backend_mock/mock_ai_service.py`):** A Flask service running on port 5052 that provides mock AI capabilities for development and testing, including configuration analysis and RAG queries.
 
 This architecture is robust, scalable, and secure. It separates concerns effectively, allowing each component to be developed and maintained independently.
 
@@ -32,7 +32,7 @@ This architecture is robust, scalable, and secure. It separates concerns effecti
 
 -   **Role:** An **Adapter** that encapsulates all communication with the external AI microservice.
 -   **Robustness:** Implements comprehensive error handling with `try...except` blocks, connection timeouts, and status code checks (`raise_for_status`). This prevents AI service failures from crashing the main backend.
--   **Configuration:** Intelligently configures the AI service URL from the `AI_AGENT_URL` environment variable, with a sensible default (`http://127.0.0.1:5004`).
+-   **Configuration:** Intelligently configures the AI service URL from the `AI_AGENT_URL` environment variable, with a sensible default (`http://127.0.0.1:5052`).
 -   **Methods:** Provides clean, simple methods (`check_health`, `query_rag`, `analyze_config`) that abstract away the underlying HTTP requests.
 
 ### C. Frontend UI Server (`frontend_py/app.py`)
@@ -63,5 +63,5 @@ This architecture is robust, scalable, and secure. It separates concerns effecti
     cd /Users/macbook/GENAI-33-LOVEAB/net-swift-orchestrator && python backend_mock/mock_ai_service.py
     ```
 -   **Solution:** Running the service directly in a dedicated terminal window ensures it remains active and responsive.
--   **Verification:** The service can be verified using `curl http://127.0.0.1:5004/health` which returns `{"status":"ok"}`.
+-   **Verification:** The service can be verified using `curl http://127.0.0.1:5052/health` which returns `{"status":"ok"}`.
 -   **Next Step:** Attempt to launch the service using `nohup` to create a truly detached and persistent background process.
