@@ -431,14 +431,23 @@ def perform_auto_login():
     return 'username' in session
 
 @app.route('/')
-@login_required
 def index():
+    if not perform_auto_login():
+        return redirect(url_for('login'))
+    
+    # Redirect to config page which is our new main page
     return redirect(url_for('config'))
 
 @app.route('/config')
 @login_required
 def config():
     return render_template('genai_networks_engineer.html', page='config')
+
+@app.route('/genai_networks_engineer')
+@login_required
+def genai_networks_engineer():
+    # Redirect to the new config page for backward compatibility
+    return redirect(url_for('config'))
 
 @app.route('/chat')
 @login_required
