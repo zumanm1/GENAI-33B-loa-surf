@@ -1,0 +1,201 @@
+{% extends "layout.html" %}
+{% block title %}Configuration - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="panel-container">
+    <!-- Left Panel: AI & RAG Configuration -->
+    <div class="panel left-panel">
+        <div class="panel-header">AI & RAG Configuration</div>
+        <div class="panel-content">
+            <form id="aiConfigForm">
+                <div class="form-group">
+                    <label for="ollamaModel">Ollama Model</label>
+                    <select id="ollamaModel" name="ollama_model">
+                        <option value="llama2">Llama 2</option>
+                        <option value="mistral">Mistral</option>
+                        <option value="codellama">CodeLlama</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="embeddingModel">ChromaDB Embedding Model</label>
+                    <select id="embeddingModel" name="embedding_model">
+                        <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2</option>
+                        <option value="sentence-t5-large">sentence-t5-large</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="aiAgentType">AI Agent Type</label>
+                    <select id="aiAgentType" name="agent_type">
+                        <option value="Chat">Chat</option>
+                        <option value="RAG">RAG</option>
+                        <option value="Agentic RAG">Agentic RAG</option>
+                        <option value="AI Agent">AI Agent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="memoryConfig">Memory Configuration</label>
+                    <select id="memoryConfig" name="memory_config">
+                        <option value="Hierarchical">Hierarchical</option>
+                        <option value="Episodic">Episodic Only</option>
+                    </select>
+                </div>
+                <button type="button" id="saveConfigBtn" class="btn">Save Configuration</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Middle Panel: Chat/Query Interface -->
+    <div class="panel middle-panel">
+        <div class="panel-header">Query Interface</div>
+        <div class="panel-content">
+            <div class="chat-window">
+                <div id="chatHistory" class="chat-history"></div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask a question...">
+                <button id="sendQueryBtn" class="btn">Send</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Document Ingestion & Logs -->
+    <div class="panel right-panel">
+        <div class="panel-header">Knowledge Base & Logs</div>
+        <div class="panel-content">
+            <div class="document-ingestion">
+                <h4>Document Ingestion</h4>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <input type="file" name="file" id="fileInput" class="file-input">
+                    <button type="submit" class="btn">Upload Document</button>
+                </form>
+            </div>
+            <div class="log-viewer">
+                <h4>Live Logs</h4>
+                <div id="logContainer" class="log-container"></div>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/config.js') }}"></script>
+{% endblock %}
+
+<div class="panel-container">
+    <!-- Left Panel: AI & RAG Configuration -->
+    <div class="panel left-panel">
+        <div class="panel-header">AI & RAG Configuration</div>
+        <div class="panel-content">
+            <form id="aiConfigForm">
+                <div class="form-group">
+                    <label for="ollamaModel">Ollama Model</label>
+                    <select id="ollamaModel" name="ollama_model">
+                        <option value="llama2">Llama 2</option>
+                        <option value="mistral">Mistral</option>
+                        <option value="codellama">CodeLlama</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="embeddingModel">ChromaDB Embedding Model</label>
+                    <select id="embeddingModel" name="embedding_model">
+                        <option value="all-MiniLM-L6-v2">all-MiniLM-L6-v2</option>
+                        <option value="sentence-t5-large">sentence-t5-large</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="aiAgentType">AI Agent Type</label>
+                    <select id="aiAgentType" name="agent_type">
+                        <option value="Chat">Chat</option>
+                        <option value="RAG">RAG</option>
+                        <option value="Agentic RAG">Agentic RAG</option>
+                        <option value="AI Agent">AI Agent</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="memoryConfig">Memory Configuration</label>
+                    <select id="memoryConfig" name="memory_config">
+                        <option value="Hierarchical">Hierarchical</option>
+                        <option value="Episodic">Episodic Only</option>
+                    </select>
+                </div>
+                <button type="button" id="saveConfigBtn" class="btn">Save Configuration</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Middle Panel: Chat/Query Interface -->
+    <div class="panel middle-panel">
+        <div class="panel-header">Query Interface</div>
+        <div class="panel-content">
+            <div class="chat-window">
+                <div id="chatHistory" class="chat-history"></div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask a question...">
+                <button id="sendQueryBtn" class="btn">Send</button>
+            </div>
+        </div>
+    </div>
+                        console.error('Error fetching AI config:', config.error);
+                        return;
+                    }
+                    document.getElementById('ollama-model').value = config.ollama_model || 'llama3:latest';
+                    document.getElementById('embedding-model').value = config.embedding_model || 'nomic-embed-text';
+                    document.getElementById('ai-agent').value = config.ai_agent_type || 'Default RAG Agent';
+                })
+                .catch(error => {
+                    console.error('Error fetching AI config:', error);
+                });
+
+            // Handle form submission
+            const configForm = document.getElementById('ai-config-form');
+            configForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const newConfig = {
+                    ollama_model: document.getElementById('ollama-model').value,
+                    embedding_model: document.getElementById('embedding-model').value,
+                    ai_agent_type: document.getElementById('ai-agent').value
+                };
+
+                fetch('/api/ai/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newConfig),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        console.log(data.message); // Maybe show a less intrusive notification
+                    } else {
+                        console.error('Error saving config:', data.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving AI config:', error);
+                });
+            });
+
+            // Real-time log fetching
+            const logViewer = document.getElementById('log-viewer');
+            function fetchLogs() {
+                fetch('/api/logs')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.logs) {
+                            const formattedLogs = data.logs.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
+                            logViewer.innerHTML = formattedLogs;
+                            logViewer.scrollTop = logViewer.scrollHeight;
+                        } else if (data.error) {
+                            logViewer.innerHTML += `<div class="log-line error">Error fetching logs: ${data.error}</div>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching logs:', error);
+                        logViewer.innerHTML += '<div class="log-line error">Failed to connect to log server.</div>';
+                    });
+            }
+            setInterval(fetchLogs, 5000);
+        });
+    </script>
+</body>
+</html>
