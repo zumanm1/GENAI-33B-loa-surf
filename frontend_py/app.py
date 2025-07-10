@@ -438,6 +438,13 @@ def index():
     # Redirect to config page which is our new main page
     return redirect(url_for('config'))
 
+@app.route('/dashboard')
+@login_required
+def dashboard():
+    """Original dashboard route for backward compatibility"""
+    # Redirect to the new main page
+    return redirect(url_for('config'))
+
 @app.route('/config')
 @login_required
 def config():
@@ -523,6 +530,7 @@ def list_documents():
         return jsonify({'error': str(e)}), 500
 
 # The upload_document function has been consolidated with the existing one
+# All necessary redirects for backward compatibility with original routes have been added
 
 @app.route('/api/documents/<document_id>', methods=['DELETE'])
 @login_required
@@ -856,6 +864,12 @@ def export_analytics():
 @login_required
 def retrieve():
     """Serve the config retrieve page and handle form submission"""
+
+@app.route('/config/retrieve', methods=['GET', 'POST'])
+@login_required
+def config_retrieve():
+    """Config retrieve page redirect for new navigation structure"""
+    return redirect(url_for('retrieve'))
     devices_list = []
     try:
         response = api_request('GET', '/api/devices')
@@ -883,6 +897,12 @@ def retrieve():
 @login_required
 def push():
     """Serve the config push page and handle form submission"""
+
+@app.route('/config/push', methods=['GET', 'POST'])
+@login_required
+def config_push():
+    """Config push page redirect for new navigation structure"""
+    return redirect(url_for('push'))
     devices_list = []
     try:
         response = api_request('GET', '/api/devices')
@@ -909,6 +929,12 @@ def push():
 @login_required
 def backups():
     """Serve the backups page and display backup history"""
+
+@app.route('/config/backups')
+@login_required
+def config_backups():
+    """Config backups page redirect for new navigation structure"""
+    return redirect(url_for('backups'))
     backup_list = []
     try:
         response = api_request('GET', '/api/backups')
@@ -922,6 +948,12 @@ def backups():
 @login_required
 def backup_detail(backup_id):
     """Serve the backup detail page"""
+
+@app.route('/config/backup/<int:backup_id>')
+@login_required
+def config_backup_detail(backup_id):
+    """Config backup detail page redirect for new navigation structure"""
+    return redirect(url_for('backup_detail', backup_id=backup_id))
     backup_data = None
     try:
         response = api_request('GET', f'/api/backup/{backup_id}')
@@ -934,32 +966,52 @@ def backup_detail(backup_id):
 @app.route('/devices', methods=['GET', 'POST'])
 @login_required
 def devices():
+    """Serve the devices page and handle form submission"""
     if request.method == 'POST':
         # Handle add device
         device_data = {
-            'name': request.form['name'],
-            'ip': request.form['ip'],
-            'device_type': request.form['device_type'],
-            'username': request.form['username'],
-            'password': request.form['password'],
+            'hostname': request.form.get('hostname'),
+            'ip_address': request.form.get('ip_address'),
+            'device_type': request.form.get('device_type'),
+            'username': request.form.get('username'),
+            'password': request.form.get('password')
         }
+        
         try:
             response = api_request('POST', '/api/devices', json=device_data)
             response.raise_for_status()
             flash('Device added successfully!', 'success')
         except requests.exceptions.RequestException as e:
-            flash(f'Error adding device: {e}', 'danger')
-        return redirect(url_for('devices'))
-
-    devices_list = []
+            app.logger.error(f"Error adding device: {str(e)}")
+            flash(f'Error adding device: {handle_api_error(e)}', 'error')
+    
+    # Get list of devices
     try:
         response = api_request('GET', '/api/devices')
         response.raise_for_status()
         devices_list = response.json().get('devices', [])
-    except requests.exceptions.RequestException as e:
-        flash(f'Error fetching devices: {e}', 'danger')
+    except requests.exceptions.RequestException:
+        devices_list = []
+        
+    return render_template('devices.html', devices=devices_list)
     
-    return render_template('devices.html', devices=devices_list, active_tab='devices')
+@app.route('/config/devices', methods=['GET', 'POST'])
+@login_required
+def config_devices():
+    """Config devices page redirect for new navigation structure"""
+    return redirect(url_for('devices'))
+    
+@app.route('/net-devices', methods=['GET', 'POST'])
+@login_required
+def net_devices():
+    """Network devices page redirect for new navigation structure"""
+    return redirect(url_for('network_ops'))
+
+@app.route('/config/analytics', methods=['GET'])
+@login_required
+def config_analytics():
+    """Config analytics page redirect for new navigation structure"""
+    return redirect(url_for('analytics'))
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5051, debug=True)
