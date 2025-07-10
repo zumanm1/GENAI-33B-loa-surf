@@ -4,10 +4,14 @@
   "description": "UI tests for Net-Swift Orchestrator",
   "main": "test_admin_login_puppeteer.js",
   "scripts": {
-    "test": "node test_admin_login_puppeteer.js",
-    "test:login": "node test_login_puppeteer.js"
+    "test": "mocha test_*.js",
+    "test:login": "mocha test_login_puppeteer.js",
+    "test:chat": "mocha test_chat_functionality.js"
   },
   "dependencies": {
     "puppeteer": "^21.0.0"
+  },
+  "devDependencies": {
+    "mocha": "^10.0.0"
   }
 }

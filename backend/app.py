@@ -340,6 +340,33 @@ def get_devices():
         })
     return jsonify({'devices': devices})
 
+
+@app.route('/api/network/status')
+def network_status():
+    """Return mock status metrics for each device (stub)."""
+    import random, time
+    devices = []
+    for name, info in DEVICE_INVENTORY.items():
+        devices.append({
+            'hostname': name,
+            'status': random.choice(['online', 'online', 'offline']),
+            'cpu': round(random.uniform(5, 80), 1),
+            'mem': round(random.uniform(10, 90), 1),
+            'timestamp': time.time()
+        })
+    return jsonify({'devices': devices})
+
+@app.route('/api/analytics')
+def get_analytics():
+    """Return mock analytics data for the dashboard."""
+    import random
+    data = {
+        'queries_per_hour': random.randint(800, 1200),
+        'avg_response_ms': random.randint(450, 600),
+        'accuracy_percent': round(random.uniform(97.5, 99.5), 1)
+    }
+    return jsonify(data)
+
 @app.route('/api/config/retrieve', methods=['POST'])
 def config_retrieve():
     """Configuration retrieve endpoint - supports multiple automation methods"""

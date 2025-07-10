@@ -7,7 +7,7 @@ import time
 from unittest.mock import patch
 
 # Test configuration
-FRONTEND_URL = "http://localhost:5006"
+FRONTEND_URL = "http://localhost:5051"
 BACKEND_URL = "http://localhost:5050"
 TEST_USER = f"testuser_{int(time.time())}"
 TEST_PASSWORD = "password123"

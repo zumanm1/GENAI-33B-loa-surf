@@ -31,12 +31,12 @@ BACKEND_PID=$!
 
 # Start Frontend Service
 echo "Starting Frontend on http://127.0.0.1:5051"
-gunicorn --bind 0.0.0.0:5051 --workers 1 frontend_py.app:app &
+DISABLE_AUTO_LOGIN=true gunicorn --bind 0.0.0.0:5051 --workers 1 --log-level info --log-file frontend.log frontend_py.app:app &
 FRONTEND_PID=$!
 
 # Start AI Service
 echo "Starting AI Service on http://127.0.0.1:5052"
-gunicorn --bind 0.0.0.0:5052 --workers 1 ai_service.app:app &
+(cd ai_service && gunicorn --bind 0.0.0.0:5052 --workers 1 --log-level info --log-file ../ai_microservice.log app:app) &
 AI_PID=$!
 
 echo ""

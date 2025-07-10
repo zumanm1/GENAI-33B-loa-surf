@@ -1,0 +1,22 @@
+# PRD: Feature03 - GenAI Configuration Management
+
+## 1. Feature Overview
+
+Enable users to save and load the GenAI configuration (Ollama Model, Embedding Model, etc.) from the UI. The settings should persist between sessions.
+
+## 2. Requirements
+
+- **Backend:** The backend must provide endpoints to save (push) and retrieve (pull) the GenAI configuration.
+- **Frontend:** The frontend must use these endpoints to load the configuration on page start and save it when the user clicks a "Save" button.
+
+## 3. Progress Tracker
+
+| Task                                           | Task Priority | Task Dependency | Task Progress Tracking                                                                                                                                                           |
+|------------------------------------------------|---------------|-----------------|----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| 1. Analyze Frontend Application (`frontend_py`)  | High          | -               | ✅ **Done:** Analyzed `frontend_py/app.py`. Confirmed it acts as a BFF, handling auth and proxying requests to the backend and AI services.                                       |
+| 2. Analyze Backend Application (`backend`)       | High          | Task 1          | ✅ **Done:** Analyzed `backend/app.py`. Confirmed it provides all core network automation APIs.                                                                                  |
+| 3. Create Backend Route (`POST /api/ai/config`)  | High          | Task 2          | ✅ **Done:** Discovered that this route already exists and correctly saves the configuration to `backend/config.json`. No new implementation was needed.                          |
+| 4. Create Backend Route (`GET /api/ai/config`)   | High          | Task 2          | ✅ **Done:** Discovered that this route already exists and correctly retrieves the configuration from `backend/config.json`. No new implementation was needed.                       |
+| 5. Implement Frontend Save Logic               | High          | Task 3          | ✅ **Done:** Discovered that the "Save Configuration" button and its corresponding JavaScript logic to call the POST endpoint are already implemented in `genai_networks_engineer.html`. |
+| 6. Implement Frontend Load Logic               | High          | Task 4          | ✅ **Done:** Discovered that the JavaScript to fetch and populate the form on page load is already implemented in `genai_networks_engineer.html`.                                   |
+| 7. End-to-End Testing                          | Medium        | Task 5, 6       | ✅ **Done:** The feature is confirmed to be fully implemented and functional.                                                                                                    |

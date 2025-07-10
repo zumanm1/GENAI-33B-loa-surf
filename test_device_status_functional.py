@@ -21,7 +21,7 @@ DB_PATH = BACKEND_DIR / "network_automation.db"
 
 # Server URLs
 BACKEND_URL = "http://localhost:5050"
-FRONTEND_URL = "http://localhost:5006"
+FRONTEND_URL = "http://localhost:5051"
 
 # Test user and device
 TEST_USER = f"testuser_{int(time.time())}"
@@ -30,47 +30,14 @@ TEST_DEVICE = "R15"  # Default device name, may be updated during test
 
 # Test fixtures
 @pytest.fixture(scope="module")
-def check_servers():
-    """Check if servers are running, start them if not."""
-    # Check backend
-    max_retries = 3
-    retry_count = 0
-    while retry_count < max_retries:
-        try:
-            response = requests.get(f"{BACKEND_URL}/api/health", timeout=5)
-            if response.status_code == 200:
-                break
-            retry_count += 1
-            time.sleep(2)
-        except requests.exceptions.ConnectionError:
-            retry_count += 1
-            if retry_count >= max_retries:
-                pytest.skip("Backend server not running. Skipping tests that require it.")
-            time.sleep(2)
-    
-    # Check frontend
-    retry_count = 0
-    while retry_count < max_retries:
-        try:
-            response = requests.get(FRONTEND_URL, timeout=5)
-            if response.status_code == 200:
-                break
-            retry_count += 1
-            time.sleep(2)
-        except requests.exceptions.ConnectionError:
-            retry_count += 1
-            if retry_count >= max_retries:
-                pytest.skip("Frontend server not running. Skipping tests that require it.")
-            time.sleep(2)
-
-@pytest.fixture(scope="module")
-def auth_session(check_servers):
+def auth_session(services_health):
     """Create an authenticated session."""
     session = requests.Session()
     
-    # Register user
+    # Register user, allowing for the user to already exist
     register_data = {"username": TEST_USER, "password": TEST_PASSWORD}
     response = session.post(f"{BACKEND_URL}/api/register", json=register_data)
+    assert response.status_code in [200, 201, 409], f"Registration failed unexpectedly: {response.text}"
     
     # Login user
     login_data = {"username": TEST_USER, "password": TEST_PASSWORD}
@@ -80,7 +47,7 @@ def auth_session(check_servers):
     return session
 
 @pytest.fixture(scope="module")
-def browser_page(check_servers):
+def browser_page(services_health):
     """Create a browser page for frontend testing."""
     with sync_playwright() as playwright:
         browser = playwright.chromium.launch(headless=True)
@@ -90,7 +57,7 @@ def browser_page(check_servers):
         try:
             # Register and login
             try:
-                page.goto(f"{FRONTEND_URL}/register", timeout=5051)
+                page.goto(f"{FRONTEND_URL}/register", timeout=10000)
                 page.fill("input[name='username']", TEST_USER)
                 page.fill("input[name='password']", TEST_PASSWORD)
                 page.click("button[type='submit']")
@@ -100,11 +67,11 @@ def browser_page(check_servers):
             
             # Login
             try:
-                page.goto(f"{FRONTEND_URL}/login", timeout=5051)
+                page.goto(f"{FRONTEND_URL}/login", timeout=10000)
                 page.fill("input[name='username']", TEST_USER)
                 page.fill("input[name='password']", TEST_PASSWORD)
                 page.click("button[type='submit']")
-                page.wait_for_url(f"{FRONTEND_URL}/", timeout=5051)
+                page.wait_for_url(f"{FRONTEND_URL}/", timeout=10000)
             except Exception as e:
                 print(f"Login failed: {e}")
                 pytest.skip("Login failed, skipping browser tests")

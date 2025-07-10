@@ -4,6 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>AI Microservice - Network Automation RAG System</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
     <style>
         * {
             margin: 0;
@@ -41,17 +42,13 @@
         }
         
         .sidebar {
-            width: 60px;
+            width: 220px;
             background: #2c3e50;
             display: flex;
             flex-direction: column;
-            align-items: center;
+            align-items: flex-start;
             padding: 1rem 0;
             transition: width 0.3s ease;
-        }
-        
-        .sidebar:hover {
-            width: 200px;
         }
         
         .nav-item {
@@ -84,12 +81,8 @@
         
         .nav-item span {
             white-space: nowrap;
-            opacity: 0;
-            transition: opacity 0.3s;
-        }
-        
-        .sidebar:hover .nav-item span {
             opacity: 1;
+            transition: opacity 0.3s;
         }
         
         .content-area {
@@ -407,42 +400,30 @@
 </head>
 <body>
     <div class="header">
-        <h1>AI Microservice - Network Automation RAG System</h1>
-        <p>Retrieval-Augmented Generation with Agentic Intelligence for Network Operations</p>
+        <h1>Net-Swift Orchestrator</h1>
+        <p>GenAI-Powered Network Automation and Operations</p>
     </div>
     
     <div class="main-container">
         <!-- Sidebar Navigation -->
         <nav class="sidebar">
-            <a href="#configuration" class="nav-item" data-view="configuration">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
-                </svg>
-                <span>Configuration</span>
+            <a href="#analytics" class="nav-item" data-view="analytics">
+                <span>Dashboard</span>
             </a>
-            <a href="#chat" class="nav-item" data-view="chat">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
-                </svg>
-                <span>Chat Interface</span>
-            </a>
-            <a href="#documents" class="nav-item" data-view="documents">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
-                </svg>
-                <span>Documents</span>
+            <a href="#chat" class="nav-item active" data-view="chat">
+                <span>GENAI Engineer</span>
             </a>
             <a href="#network-ops" class="nav-item" data-view="network-ops">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
-                </svg>
-                <span>Network Ops</span>
+                <span>Devices</span>
             </a>
-            <a href="#analytics" class="nav-item" data-view="analytics">
-                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
-                </svg>
-                <span>Analytics</span>
+            <a href="#" class="nav-item" data-view="config-retrieve">
+                <span>Config Retrieve</span>
+            </a>
+            <a href="#" class="nav-item" data-view="config-push">
+                <span>Config Push</span>
+            </a>
+            <a href="#" class="nav-item" data-view="backups">
+                <span>Backups</span>
             </a>
         </nav>
         
@@ -709,11 +690,107 @@
         });
     </script>
     <!-- Placeholder containers for other views -->
-    <div id="chat-view" class="view-container" style="display:none; padding:2rem;"><h2>Chat Interface</h2></div>
-    <div id="documents-view" class="view-container" style="display:none; padding:2rem;"><h2>Documents Manager</h2></div>
-    <div id="network-ops-view" class="view-container" style="display:none; padding:2rem;"><h2>Network Operations</h2></div>
-    <div id="analytics-view" class="view-container" style="display:none; padding:2rem;"><h2>Analytics Dashboard</h2></div>
+    <div id="chat-view" class="view-container d-none">
+        <div class="chat-layout">
+            <div class="chat-main">
+                <div class="panel">
+                    <div class="panel-header">Chat History</div>
+                    <div class="panel-content chat-history"></div>
+                </div>
+                <div class="chat-input-area">
+                    <input type="text" id="chat-input-full" placeholder="Ask a question...">
+                    <button class="btn">Send</button>
+                    <button class="btn">Attach File</button>
+                </div>
+            </div>
+            <div class="chat-sidebar">
+                <div class="panel">
+                    <div class="panel-header">Conversation Details</div>
+                    <div class="panel-content">
+                        <p><strong>Active Model:</strong> <span id="active-model-display">-</span></p>
+                        <p><strong>Context Tokens:</strong> <span id="context-tokens-display">0</span></p>
+                        <button class="btn">New Chat</button>
+                        <button class="btn">Export</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="documents-view" class="view-container d-none">
+        <div class="panel">
+            <div class="panel-header">Documents Manager</div>
+            <div class="panel-content">
+                <div class="toolbar">
+                    <input type="file" id="doc-upload-input" class="d-none" accept=".txt,.pdf,.md">
+                    <input type="search" placeholder="Search documents...">
+                    <button id="upload-doc-btn" class="btn">Upload</button>
+                </div>
+                <div class="document-list">
+                    <p>Document list will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="network-ops-view" class="view-container d-none">
+        <div class="panel">
+            <div class="panel-header">Network Operations</div>
+            <div class="panel-content">
+                 <div class="ops-grid">
+                    <div class="stat-card"><h4>142</h4><p>Online</p></div>
+                    <div class="stat-card"><h4>8</h4><p>Offline</p></div>
+                    <div class="stat-card"><h4>12</h4><p>Warning</p></div>
+                    <div class="stat-card"><h4>162</h4><p>Total</p></div>
+                </div>
+                <div class="device-list-panel">
+                    <h4>Device Inventory</h4>
+                    <p>Device list will appear here.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div id="analytics-view" class="view-container d-none">
+        <div class="panel">
+            <div class="panel-header">Analytics Dashboard</div>
+            <div class="panel-content">
+                <div class="analytics-grid">
+                    <div class="stat-card"><h4>847</h4><p>Queries/hr</p></div>
+                    <div class="stat-card"><h4>523ms</h4><p>Avg. Response</p></div>
+                    <div class="stat-card"><h4>98.3%</h4><p>Accuracy</p></div>
+                </div>
+                <p style="text-align:center; margin-top: 2rem;">Charts and detailed analytics will be displayed here.</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="config-push-view" class="view-container d-none">
+        <div class="panel">
+            <div class="panel-header">AI-Powered Config Push</div>
+            <div class="panel-content">
+                <div class="config-push-form">
+                    <div class="form-group">
+                        <label for="device-select">Select Device</label>
+                        <select id="device-select" class="form-control"></select>
+                    </div>
+                    <div class="form-group">
+                        <label for="natural-language-prompt">Describe Configuration Change</label>
+                        <textarea id="natural-language-prompt" class="form-control" rows="3" placeholder="e.g., Change the description of interface f0/0 to 'AI-Managed Port'"></textarea>
+                    </div>
+                    <button id="generate-config-btn" class="btn btn-primary">Generate Config</button>
+                </div>
+                <hr>
+                <div class="generated-config-container">
+                    <h5>Generated Configuration</h5>
+                    <pre><code id="generated-config-output" class="language-cisco">! No configuration generated yet.</code></pre>
+                    <button id="push-config-btn" class="btn btn-success d-none">Push to Device</button>
+                </div>
+            </div>
+        </div>
+    </div>
 
     <script src="/static/js/view_router.js"></script>
+    <script src="/static/js/documents.js"></script>
+    <script src="/static/js/network_ops.js"></script>
+    <script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
 </body>
 </html>

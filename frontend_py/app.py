@@ -7,6 +7,7 @@ import requests
 import os
 import functools
 import logging
+from datetime import datetime
 from werkzeug.utils import secure_filename
 from frontend_py.rag_processor import RAGProcessor
 
@@ -34,7 +35,7 @@ rag_processor = RAGProcessor(docs_path=app.config['UPLOAD_FOLDER'])
 def api_request(method, endpoint, **kwargs):
     """Make an authenticated request to the backend API."""
     url = f"{BACKEND_API_URL}{endpoint}"
-    headers = kwargs.get('headers', {}) or {}
+    headers = kwargs.get('headers', {})
     if 'auth_token' in session:
         headers['Authorization'] = f"Bearer {session['auth_token']}"
     kwargs['headers'] = headers
@@ -173,28 +174,35 @@ def allowed_file(filename):
 
 @app.route('/api/rag/upload', methods=['POST'])
 @login_required
-def upload_rag_document():
+def rag_upload():
+    """Proxy document uploads to the backend RAG service."""
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     
-    if file:
-        filename = secure_filename(file.filename)
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+    files = {'file': (file.filename, file.read(), file.content_type)}
+    response = api_request('POST', '/api/rag/upload', files=files)
+    return Response(response.content, response.status_code, response.headers.items())
 
-        # Re-process all documents in the upload folder
-        try:
-            success = rag_processor.process_documents()
-            if success:
-                return jsonify({'message': f'File "{filename}" uploaded and documents re-indexed successfully.'})
-            else:
-                return jsonify({'error': 'Failed to process documents after upload.'}), 500
-        except Exception as e:
-            logger.error(f"Error processing uploaded file: {e}")
-            return jsonify({'error': 'Failed to process document.'}), 500
+@app.route('/api/analytics')
+@login_required
+def analytics_data():
+    """Proxy analytics data requests to the backend."""
+    response = api_request('GET', '/api/analytics')
+    return Response(response.content, response.status_code, response.headers.items())
+
+@app.route('/api/rag/list', methods=['GET'])
+@login_required
+def rag_list():
+    try:
+        files = [f for f in os.listdir(app.config['UPLOAD_FOLDER']) if os.path.isfile(os.path.join(app.config['UPLOAD_FOLDER'], f))]
+        return jsonify({'documents': files})
+    except Exception as e:
+        logger.error(f"Error listing documents: {e}")
+        return jsonify({'error': 'Could not list documents'}), 500
+
 
 @app.route('/api/rag/query', methods=['POST'])
 @login_required
@@ -208,12 +216,21 @@ def rag_query():
     response = rag_processor.query(query)
     return jsonify({'response': response})
 
+@app.route('/api/network/status', methods=['GET'])
+@login_required
+def network_status():
+    try:
+        response = api_request('GET', '/api/network/status')
+        response.raise_for_status()
+        return jsonify(response.json())
+    except requests.exceptions.RequestException as e:
+        return jsonify({'error': str(e)}), 500
+
 @app.route('/api/upload_document', methods=['POST'])
 @login_required
 def upload_document():
     if 'files[]' not in request.files:
         return jsonify({'error': 'No file part'}), 400
-    
     files = request.files.getlist('files[]')
     errors = []
     successful_uploads = []
@@ -360,8 +377,10 @@ def perform_auto_login():
 
 @app.route('/')
 def index():
-    if not perform_auto_login():
-        return redirect(url_for('login'))
+    if 'username' not in session:
+        # If auto-login is enabled, try that first.
+        if not perform_auto_login():
+            return redirect(url_for('login'))
     
     try:
         dev_resp = api_request('GET', '/api/devices', timeout=3)

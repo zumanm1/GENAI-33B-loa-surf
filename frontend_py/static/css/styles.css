@@ -1,0 +1,91 @@
+/* --- Styles for SPA Views --- */
+.view-container {
+    padding: 1rem;
+    width: 100%;
+    overflow-y: auto;
+}
+
+/* Chat View */
+.chat-layout {
+    display: flex;
+    gap: 1rem;
+    height: 100%;
+}
+.chat-main {
+    flex: 3;
+    display: flex;
+    flex-direction: column;
+}
+.chat-sidebar {
+    flex: 1;
+}
+.chat-history {
+    flex-grow: 1;
+    border: 1px solid #ddd;
+    padding: 1rem;
+    margin-bottom: 1rem;
+    background: #fff;
+    min-height: 300px;
+}
+.chat-input-area {
+    display: flex;
+    gap: 0.5rem;
+}
+.chat-input-area input {
+    flex-grow: 1;
+    padding: 0.5rem;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Documents View */
+.toolbar {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+}
+.toolbar input {
+    padding: 0.5rem;
+    width: 300px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+}
+
+/* Network Ops & Analytics Views */
+.ops-grid, .analytics-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 1rem;
+    margin-bottom: 1rem;
+}
+.device-list-panel {
+    margin-top: 1rem;
+}
+
+/* --- Styles for Chat Messages --- */
+.chat-message {
+    padding: 0.5rem 1rem;
+    border-radius: 10px;
+    margin-bottom: 0.5rem;
+    max-width: 80%;
+    word-wrap: break-word;
+}
+
+.user-message {
+    background-color: #007bff;
+    color: white;
+    align-self: flex-end;
+    margin-left: auto;
+}
+
+.ai-message {
+    background-color: #e9ecef;
+    color: #333;
+    align-self: flex-start;
+}
+
+.error-message {
+    background-color: #f8d7da;
+    color: #721c24;
+    text-align: center;
+}

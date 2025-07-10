@@ -1,22 +1,32 @@
 import json, time, secrets
 import pytest
+
+
 import requests
 
 BACKEND_URL = "http://localhost:5050"
 
 @pytest.fixture(scope="session")
-def auth_headers():
+def auth_headers(services_health):
     # Register+login a pair of users (proposer & approver)
     u1 = f"proposer_{int(time.time())}"
     u2 = f"approver_{int(time.time())}"
     for u in (u1, u2):
-        requests.post(f"{BACKEND_URL}/api/register", json={"username": u, "password": "pass"})
+        try:
+            r = requests.post(f"{BACKEND_URL}/api/register", json={"username": u, "password": "pass"})
+            # Allow for user to already exist
+            assert r.status_code in [201, 409]
+        except requests.exceptions.ConnectionError as e:
+            pytest.fail(f"Failed to connect to backend at {BACKEND_URL}: {e}")
     # login
     def _login(user):
-        r = requests.post(f"{BACKEND_URL}/api/login", json={"username": user, "password": "pass"})
-        r.raise_for_status()
-        token = r.json().get("auth_token")
-        return {"Authorization": f"Bearer {token}"}
+        try:
+            r = requests.post(f"{BACKEND_URL}/api/login", json={"username": user, "password": "pass"})
+            r.raise_for_status()
+            token = r.json().get("auth_token")
+            return {"Authorization": f"Bearer {token}"}
+        except requests.RequestException as e:
+            pytest.fail(f"Login failed for user {user}: {e}")
     return _login(u1), _login(u2)
 
 

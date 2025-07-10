@@ -1,53 +1,54 @@
-// Simple view router for genai_networks_engineer single-page interface
-(function () {
-    const views = ['configuration', 'chat', 'documents', 'network-ops', 'analytics'];
+document.addEventListener('DOMContentLoaded', () => {
+    const navItems = document.querySelectorAll('.nav-item');
+    const viewContainers = document.querySelectorAll('.view-container');
 
-    function $id(id) { return document.getElementById(id); }
+    function switchView(viewName) {
+        // Hide all view containers
+        viewContainers.forEach(container => {
+            if (container) {
+                container.classList.add('d-none');
+            }
+        });
 
-    function updateSidebarActiveState(view) {
-        document.querySelectorAll('.sidebar .nav-item').forEach(el => {
-            if (el.dataset.view === view) {
-                el.classList.add('active');
-            } else {
-                el.classList.remove('active');
+        // Show the target view
+        const targetView = document.getElementById(`${viewName}-view`);
+        if (targetView) {
+            targetView.classList.remove('d-none');
+        } else {
+            // If view doesn't exist, default to the configuration view
+            const defaultConfigView = document.getElementById('configuration-view');
+            if (defaultConfigView) {
+                defaultConfigView.classList.remove('d-none');
+            }
+        }
+
+        // Update the active state in the sidebar
+        navItems.forEach(item => {
+            item.classList.remove('active');
+            if (item.dataset.view === viewName) {
+                item.classList.add('active');
             }
         });
     }
 
-    function showView(view) {
-        views.forEach(v => {
-            const el = $id(`${v}-view`);
-            if (el) el.style.display = v === view ? 'flex' : 'none';
+    // Handle sidebar navigation clicks
+    navItems.forEach(item => {
+        item.addEventListener('click', (event) => {
+            event.preventDefault();
+            const viewName = item.dataset.view;
+            window.location.hash = viewName;
         });
-        updateSidebarActiveState(view);
-        sessionStorage.setItem('activeView', view);
+    });
+
+    // Function to handle hash changes for routing
+    function handleHashChange() {
+        const viewName = window.location.hash.substring(1) || 'configuration';
+        switchView(viewName);
     }
 
-    function init() {
-        // attach click listeners
-        document.querySelectorAll('.sidebar .nav-item').forEach(el => {
-            el.addEventListener('click', (e) => {
-                const view = el.dataset.view;
-                if (view) {
-                    e.preventDefault();
-                    window.location.hash = view; // bookmarkable
-                    showView(view);
-                }
-            });
-        });
+    // Listen for hash changes to switch views
+    window.addEventListener('hashchange', handleHashChange);
 
-        // initial view
-        const hashView = window.location.hash.slice(1);
-        const saved = sessionStorage.getItem('activeView');
-        const initial = views.includes(hashView) ? hashView : (views.includes(saved) ? saved : 'configuration');
-        showView(initial);
-
-        // respond to hash changes (back/forward buttons)
-        window.addEventListener('hashchange', () => {
-            const hv = window.location.hash.slice(1);
-            if (views.includes(hv)) showView(hv);
-        });
-    }
-
-    document.addEventListener('DOMContentLoaded', init);
-})();
+    // Initial view setup on page load
+    handleHashChange();
+});
