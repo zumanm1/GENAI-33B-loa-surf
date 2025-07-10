@@ -1,10 +1,5 @@
 #!/bin/bash
 # Net-Swift Orchestrator Startup Script
-# This script ensures clean port initialization before starting services
-# It will:
-# 1. Clean up any processes using the required ports
-# 2. Start backend, frontend, and AI services with production configuration
-# 3. Verify all services are healthy
 
 # Text formatting
 BOLD="\033[1m"
@@ -15,96 +10,68 @@ NC="\033[0m" # No Color
 
 echo -e "${BOLD}=== Net-Swift Orchestrator Startup ===${NC}"
 
-# Set environment variables
-export BACKEND_URL="http://127.0.0.1:5050"
-export FRONTEND_URL="http://127.0.0.1:5051"
-export AI_AGENT_URL="http://127.0.0.1:5004"
-
-# Default to PRODUCTION mode unless specified otherwise
-export RUN_MODE=${RUN_MODE:-PRODUCTION}
-
 # Ensure we're in the project root directory
 cd "$(dirname "$0")"
 
-# Define critical ports
+# Install dependencies
+echo -e "\n${BOLD}${YELLOW}Installing dependencies...${NC}"
+pip install -r requirements.txt
+if [ $? -ne 0 ]; then
+    echo -e "${RED}Failed to install dependencies. Aborting.${NC}"
+    exit 1
+fi
+echo -e "${GREEN}Dependencies installed successfully.${NC}"
+
+# Define ports and PID file
 BACKEND_PORT=5050
 FRONTEND_PORT=5051
-AI_PORT=5004
+AI_PORT=5052
+PID_FILE=".pids"
 
-# Function to check and clean ports
+# Function to clean up ports
 cleanup_ports() {
     echo -e "\n${BOLD}${YELLOW}Cleaning up service ports...${NC}"
-    
-    # Check if our port manager utility is available
-    if [ -f "utils/port_manager.py" ]; then
-        echo "Using port_manager.py utility"
-        python utils/port_manager.py free ${BACKEND_PORT} ${FRONTEND_PORT} ${AI_PORT} --force
-        if [ $? -ne 0 ]; then
-            echo -e "${RED}Failed to clean up ports with port_manager.py${NC}"
-            return 1
-        fi
-    else
-        echo "Port manager utility not found, using fallback method"
-        
-        # Cleanup each port manually
-        for PORT in ${BACKEND_PORT} ${FRONTEND_PORT} ${AI_PORT}; do
-            echo -e "Checking port ${PORT}..."
-            
-            # Find processes using this port
-            PIDS=$(lsof -i:${PORT} -t 2>/dev/null)
-            
-            if [ -n "$PIDS" ]; then
-                echo -e "${YELLOW}Port ${PORT} is in use by process(es): ${PIDS}${NC}"
-                echo "Killing processes..."
-                
-                for PID in $PIDS; do
-                    echo "Killing process ${PID}..."
-                    kill -9 $PID 2>/dev/null
-                    if [ $? -eq 0 ]; then
-                        echo "Process ${PID} terminated"
-                    else
-                        echo -e "${RED}Failed to kill process ${PID}${NC}"
-                    fi
-                done
-            else
-                echo -e "${GREEN}Port ${PORT} is available${NC}"
-            fi
-        done
-    fi
-    
-    echo -e "${GREEN}Port cleanup complete${NC}"
-    return 0
+    for PORT in ${BACKEND_PORT} ${FRONTEND_PORT} ${AI_PORT}; do
+        echo "Checking port $PORT..."
+        # Use xargs to handle multiple PIDs on the same port
+        lsof -t -i:$PORT | xargs -r kill -9
+    done
+    echo -e "${GREEN}Ports cleaned successfully.${NC}"
 }
 
-# Function to start backend service
-start_backend() {
-    echo -e "\n${BOLD}Starting backend service on port ${BACKEND_PORT}...${NC}"
-    
-    # Navigate to backend directory
-    cd backend
-    
-    # Start with gunicorn for production-grade stability
-    gunicorn --bind 0.0.0.0:${BACKEND_PORT} --workers 4 'app:app' &
-    BACKEND_PID=$!
-    
-    cd ..
-    echo -e "${GREEN}Backend started with PID ${BACKEND_PID}${NC}"
-}
+# Clean up ports before starting
+cleanup_ports
 
-# Function to start frontend service
-start_frontend() {
-    echo -e "\n${BOLD}Starting frontend service on port ${FRONTEND_PORT}...${NC}"
-    
-    # Navigate to frontend directory
-    cd frontend_py
-    
-    # Start with gunicorn for production-grade stability
-    gunicorn --bind 0.0.0.0:${FRONTEND_PORT} --workers 4 'app:app' &
-    FRONTEND_PID=$!
-    
-    cd ..
-    echo -e "${GREEN}Frontend started with PID ${FRONTEND_PID}${NC}"
-}
+# Clean up old database to ensure a fresh start
+rm -f backend/network_automation.db
+
+# Start services
+echo -e "\n${BOLD}${YELLOW}Starting services...${NC}"
+
+# Start Backend
+gunicorn --chdir backend --bind 0.0.0.0:${BACKEND_PORT} --workers 1 --threads 8 app:app & 
+BACKEND_PID=$!
+echo "- Backend started on port ${BACKEND_PORT} with PID ${BACKEND_PID}"
+
+# Start Frontend
+gunicorn --chdir frontend_py --bind 0.0.0.0:${FRONTEND_PORT} --workers 1 app:app &
+FRONTEND_PID=$!
+echo "- Frontend started on port ${FRONTEND_PORT} with PID ${FRONTEND_PID}"
+
+# Start AI Service
+gunicorn --chdir ai_service --bind 0.0.0.0:${AI_PORT} --workers 1 app:app &
+AI_PID=$!
+echo "- AI Service started on port ${AI_PORT} with PID ${AI_PID}"
+
+# Save PIDs to file
+# Overwrite PID file with the new PIDs
+> $PID_FILE
+echo $BACKEND_PID >> $PID_FILE
+echo $FRONTEND_PID >> $PID_FILE
+echo $AI_PID >> $PID_FILE
+
+echo -e "\n${GREEN}All services are running.${NC}"
+echo -e "To stop all services, run ${BOLD}./stop.sh${NC}"
 
 # Function to start AI service
 start_ai() {

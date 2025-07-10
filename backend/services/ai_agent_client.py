@@ -26,7 +26,8 @@ class AIAgentClient:
         try:
             response = requests.get(f"{self.base_url}/api/health", timeout=10)
             response.raise_for_status()  # Raise an exception for bad status codes
-            return response.json()
+            # If we get a 200 OK, the service is healthy. No need to parse the body.
+            return {"status": "healthy"}
         except requests.exceptions.RequestException as e:
             logger.error(f"Failed to connect to AI Agent for health check: {e}")
             return {"status": "unreachable", "error": str(e)}

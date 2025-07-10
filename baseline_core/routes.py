@@ -79,6 +79,27 @@ def create_proposal(device_id):
 
 @bp.route("/baseline/proposals/<int:proposal_id>", methods=["PUT"])
 
+@bp.route("/baseline/proposals", methods=["GET"])
+def get_proposals():
+    """Return all proposals, optionally filtered by status."""
+    status = request.args.get("status")
+    conn = get_conn(True)
+
+    sql = "SELECT p.*, s.sha256 FROM Proposal p JOIN ConfigSnapshot s ON s.id=p.snapshot_id"
+    params = []
+    if status:
+        sql += " WHERE p.status=?"
+        params.append(status)
+
+    sql += " ORDER BY p.id DESC"
+    rows = conn.execute(sql, params).fetchall()
+    conn.close()
+
+    proposals = [dict(row) for row in rows]
+    return jsonify(proposals)
+
+
+@bp.route("/baseline/proposals/<int:proposal_id>", methods=["PUT"])
 def decide_proposal(proposal_id):
     data = request.get_json(force=True) or {}
     action = data.get("action")

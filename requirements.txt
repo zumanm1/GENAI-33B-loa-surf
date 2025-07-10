@@ -4,6 +4,9 @@ gunicorn
 bcrypt
 pypdf
 langchain
+langchain-community
+langchain-ollama
 sentence-transformers
 faiss-cpu
-langchain-ollama
+torch
+transformers

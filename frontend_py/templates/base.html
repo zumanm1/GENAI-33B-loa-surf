@@ -41,12 +41,6 @@
                         <li class="nav-item">
                             <a class="nav-link {% if active_tab == 'backups' %}active fw-bold{% endif %}" href="{{ url_for('backups') }}">Backups</a>
                         </li>
-                        <li class="nav-item position-relative">
-                            <a class="nav-link {% if active_tab == 'approvals' %}active fw-bold{% endif %}" href="{{ url_for('approvals') }}">
-                                Approvals
-                                <span id="pending-count" class="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger d-none">0</span>
-                            </a>
-                        </li>
                     {% endif %}
                 </ul>
                 <ul class="navbar-nav ms-auto">

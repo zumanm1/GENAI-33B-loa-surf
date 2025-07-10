@@ -1,83 +1,155 @@
 import os
-from langchain_community.vectorstores import FAISS
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from langchain.text_splitter import RecursiveCharacterTextSplitter
-from langchain_community.document_loaders import PyPDFLoader, TextLoader
-from langchain_community.chat_models import ChatOllama
-from langchain.chains import RetrievalQA
-from langchain.agents import AgentType, initialize_agent, Tool
+import json
 import requests
+from langchain_community.vectorstores import Chroma
+from langchain_community.chat_models import ChatOllama
+from langchain_community.embeddings import OllamaEmbeddings
+from langchain_community.document_loaders import DirectoryLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+from langchain.chains import RetrievalQA
+from langchain.prompts import PromptTemplate
+from langchain.agents import AgentExecutor, create_tool_calling_agent
+from langchain_core.tools import tool
+from langchain import hub
+import logging
+from logging.handlers import RotatingFileHandler
 
-VECTOR_STORE_PATH = 'vector_store'
-if not os.path.exists(VECTOR_STORE_PATH):
-    os.makedirs(VECTOR_STORE_PATH)
+# --- Setup Logging --- #
+log_directory = "logs"
+if not os.path.exists(log_directory):
+    os.makedirs(log_directory)
 
-VECTOR_STORE_INDEX = os.path.join(VECTOR_STORE_PATH, 'faiss_index')
+log_file = os.path.join(log_directory, "rag_processor.log")
 
-def get_text_from_documents(file_paths):
-    """Load text from a list of documents (PDFs, TXTs)."""
-    documents = []
-    for file_path in file_paths:
-        if file_path.lower().endswith('.pdf'):
-            loader = PyPDFLoader(file_path)
-            documents.extend(loader.load())
-        elif file_path.lower().endswith('.txt') or file_path.lower().endswith('.md'):
-            loader = TextLoader(file_path)
-            documents.extend(loader.load())
-    return documents
+# Create a logger
+logger = logging.getLogger(__name__)
+logger.setLevel(logging.INFO)
 
-def get_text_chunks(documents):
-    """Split documents into chunks."""
-    text_splitter = RecursiveCharacterTextSplitter(
-        chunk_size=1000,
-        chunk_overlap=200
-    )
-    chunks = text_splitter.split_documents(documents)
-    return chunks
+# Create a rotating file handler
+handler = RotatingFileHandler(log_file, maxBytes=1024*1024, backupCount=3) # 1MB per file, 3 backups
+handler.setLevel(logging.INFO)
 
-def get_vector_store(text_chunks):
-    """Create or update the FAISS vector store."""
-    embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-    
-    if os.path.exists(VECTOR_STORE_INDEX):
-        # Load existing vector store and add new documents
-        vector_store = FAISS.load_local(VECTOR_STORE_INDEX, embeddings, allow_dangerous_deserialization=True)
-        vector_store.add_documents(text_chunks)
-    else:
-        # Create a new vector store
-        vector_store = FAISS.from_documents(documents=text_chunks, embedding=embeddings)
-        
-    vector_store.save_local(VECTOR_STORE_INDEX)
-    print(f"Vector store updated and saved at {VECTOR_STORE_INDEX}")
+# Create a logging format
+formatter = logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s')
+handler.setFormatter(formatter)
 
-def handle_rag_query(query):
-    """Handle a user query using the RAG pipeline."""
-    if not os.path.exists(VECTOR_STORE_INDEX):
-        return "Vector store not found. Please upload documents first."
+# Add the handler to the logger, but avoid adding it multiple times
+if not any(isinstance(h, RotatingFileHandler) for h in logger.handlers):
+    logger.addHandler(handler)
 
+# --- Default Configuration --- #
+DEFAULT_CONFIG = {
+    "ollama_model": "llama2",
+    "embedding_model": "all-MiniLM-L6-v2",
+    "ai_agent_type": "Default RAG Agent",
+    "vector_store_path": "chroma_db_store"
+}
+
+# --- Configuration Loader --- #
+def get_ai_config():
+    """Fetches AI configuration from the backend API."""
     try:
-        embeddings = HuggingFaceEmbeddings(model_name="sentence-transformers/all-MiniLM-L6-v2")
-        vector_store = FAISS.load_local(VECTOR_STORE_INDEX, embeddings, allow_dangerous_deserialization=True)
-        
-        # Initialize the local LLM
-        # IMPORTANT: Make sure you have Ollama running with the specified model pulled.
-        # e.g., run `ollama run llama2` in your terminal.
-        llm = ChatOllama(model="llama2")
+        response = requests.get("http://127.0.0.1:5050/api/ai/config", timeout=3)
+        if response.status_code == 200:
+            logger.info("Successfully fetched AI config from backend.")
+            return response.json()
+    except requests.exceptions.RequestException as e:
+        logger.warning(f"Could not fetch AI config from backend: {e}. Using default config.")
+    return DEFAULT_CONFIG
 
-        # Create the RetrievalQA chain
-        qa_chain = RetrievalQA.from_chain_type(
-            llm=llm,
-            chain_type="stuff",
-            retriever=vector_store.as_retriever()
+@tool
+def get_router_config(device_name: str) -> str:
+    """Fetches the running configuration for a specific router."""
+    mock_configs = {
+        "Router1": "hostname Router1\ninterface eth0/0\nip address 192.168.1.1 255.255.255.0",
+        "Router2": "hostname Router2\ninterface eth0/1\nip address 10.0.0.1 255.255.255.0"
+    }
+    return mock_configs.get(device_name, f"Configuration for {device_name} not found.")
+
+class RAGProcessor:
+    def __init__(self, docs_path="uploads"):
+        self.docs_path = docs_path
+        self.vector_store = None
+        self.config = get_ai_config()
+        self.text_splitter = RecursiveCharacterTextSplitter(chunk_size=1000, chunk_overlap=200)
+        self.prompt_template = """Use the following pieces of context to answer the question at the end.
+        If you don't know the answer, just say that you don't know, don't try to make up an answer.
+        Context: {context}
+        Question: {question}
+        Helpful Answer:"""
+        self.PROMPT = PromptTemplate(
+            template=self.prompt_template, input_variables=["context", "question"]
         )
 
-        response = qa_chain.invoke(query)
-        return response.get('result', 'No answer could be generated.')
+    def _get_llm(self):
+        """Initializes the LLM with the model from the config."""
+        model_name = self.config.get("ollama_model", DEFAULT_CONFIG["ollama_model"])
+        logger.info(f"Initializing Ollama with model: {model_name}")
+        return ChatOllama(model=model_name)
 
-    except Exception as e:
-        print(f"An error occurred during RAG query processing: {e}")
-        return "An error occurred while processing your request. Please ensure Ollama is running and the model is available."
+    def _get_embeddings(self):
+        """Initializes the embeddings with the model from the config."""
+        # Note: OllamaEmbeddings doesn't use a separate embedding model name in the same way.
+        # The model used for embeddings is tied to the Ollama instance model.
+        # If you were using something like HuggingFaceEmbeddings, you'd use self.config.get('embedding_model').
+        model_name = self.config.get("ollama_model", DEFAULT_CONFIG["ollama_model"])
+        logger.info(f"Initializing OllamaEmbeddings for model: {model_name}")
+        return OllamaEmbeddings(model=model_name)
 
+    def process_documents(self):
+        if not os.path.exists(self.docs_path) or not os.listdir(self.docs_path):
+            logger.warning("Uploads directory is empty or does not exist. Skipping document processing.")
+            return False
+        try:
+            loader = DirectoryLoader(self.docs_path, glob="**/*.txt")
+            documents = loader.load()
+            if not documents:
+                logger.warning("No documents found to process.")
+                return False
+            
+            texts = self.text_splitter.split_documents(documents)
+            embeddings = self._get_embeddings()
+            self.vector_store = Chroma.from_documents(texts, embeddings)
+            logger.info("Documents processed and vector store created successfully.")
+            return True
+        except Exception as e:
+            logger.error(f"Error processing documents: {e}")
+            return "An error occurred while processing your request. Please ensure Ollama is running and the model is available."
+
+    def query(self, question: str):
+        if self.vector_store is None:
+            logger.warning("Vector store not initialized. Processing documents first.")
+            processed = self.process_documents()
+            if not processed:
+                return "Vector store is not available. Please upload documents first."
+
+        try:
+            llm = self._get_llm()
+            qa_chain = RetrievalQA.from_chain_type(
+                llm,
+                retriever=self.vector_store.as_retriever(),
+                chain_type_kwargs={"prompt": self.PROMPT}
+            )
+            result = qa_chain({"query": question})
+            return result["result"]
+        except Exception as e:
+            logger.error(f"Error during query: {e}")
+            return "An error occurred. Ensure Ollama is running and documents have been uploaded."
+
+    def agent_chat(self, question: str):
+        try:
+            llm = self._get_llm()
+            tools = [get_router_config]
+            prompt = hub.pull("hwchase17/openai-functions-agent")
+            
+            agent = create_tool_calling_agent(llm, tools, prompt)
+            agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
+            
+            response = agent_executor.invoke({"input": question})
+            return response.get("output", "No output from agent.")
+        except Exception as e:
+            logger.error(f"Error in agent_chat: {e}")
+            return "An error occurred while processing your agent request. Please ensure Ollama is running."
 
 def get_device_config(hostname: str, api_session: requests.Session) -> str:
     """Tool for the AI agent. Fetches the running configuration for a specific device by its hostname."""

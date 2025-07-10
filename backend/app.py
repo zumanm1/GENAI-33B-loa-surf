@@ -1,4 +1,8 @@
 
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from flask import Flask, request, jsonify, render_template
 from flask_cors import CORS
 import os
@@ -9,6 +13,7 @@ import pathlib
 BASE_DIR = pathlib.Path(__file__).parent
 DB_PATH = str(BASE_DIR / 'network_automation.db')
 import logging
+import json
 import secrets
 from datetime import datetime
 import sqlite3
@@ -491,8 +496,7 @@ def api_login():
             pass
     return jsonify({'error': 'invalid credentials'}), 401
 
-# Existing backups route remains below
-@app.route('/api/backups', methods=['GET'])
+# AI Agent health check endpoint
 @app.route('/api/ai/health', methods=['GET'])
 def ai_agent_health():
     """Proxy for the AI Agent's health check."""
@@ -519,6 +523,50 @@ def ai_analyze_config():
 
     result = ai_agent.analyze_config(data['config_text'], data.get('device_name'))
     return jsonify(result)
+
+@app.route('/api/ai/config', methods=['GET'])
+def get_ai_config():
+    """Retrieve the current AI configuration."""
+    try:
+        with open('backend/config.json', 'r') as f:
+            config = json.load(f)
+        return jsonify(config)
+    except FileNotFoundError:
+        return jsonify({'error': 'AI configuration file not found.'}), 404
+    except Exception as e:
+        logger.error(f"Error reading AI config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/ai/config', methods=['POST'])
+def update_ai_config():
+    """Update the AI configuration."""
+    try:
+        new_config = request.get_json()
+        # Optionally, add validation for the new_config structure here
+        with open('backend/config.json', 'w') as f:
+            json.dump(new_config, f, indent=4)
+        # Here you might want to signal the AI service to reload the config
+        return jsonify({'message': 'AI configuration updated successfully.'})
+    except Exception as e:
+        logger.error(f"Error updating AI config: {e}")
+        return jsonify({'error': str(e)}), 500
+
+@app.route('/api/logs', methods=['GET'])
+def get_logs():
+    """Retrieve the latest RAG processor logs."""
+    log_file_path = 'logs/rag_processor.log'
+    try:
+        if os.path.exists(log_file_path):
+            with open(log_file_path, 'r') as f:
+                # Read last 100 lines to avoid sending huge files
+                lines = f.readlines()
+                log_content = "".join(lines[-100:])
+            return jsonify({'logs': log_content})
+        else:
+            return jsonify({'logs': 'Log file not found. Waiting for RAG processor to generate logs...\n'})
+    except Exception as e:
+        logger.error(f"Error reading log file: {e}")
+        return jsonify({'error': str(e)}), 500
 
 @app.route('/api/events', methods=['GET'])
 def get_events():

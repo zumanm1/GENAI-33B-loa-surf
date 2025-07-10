@@ -7,7 +7,7 @@
     "test": "tests"
   },
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha tests/ui/test_login_puppeteer.js tests/ui/test_genai_engineer_puppeteer.js"
   },
   "repository": {
     "type": "git",
@@ -22,7 +22,11 @@
   },
   "homepage": "https://github.com/zumanm1/net-swift-orchestrator#readme",
   "dependencies": {
-    "axios": "^1.10.0",
+    "axios": "^1.10.0"
+  },
+  "devDependencies": {
+    "chai": "^5.2.1",
+    "mocha": "^11.7.1",
     "puppeteer": "^24.12.1"
   }
 }

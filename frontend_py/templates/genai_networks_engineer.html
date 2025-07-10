@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Microservice - Network Automation RAG System</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background-color: #f5f7fa;
+            color: #333;
+        }
+        
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 1rem 2rem;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        
+        .header h1 {
+            font-size: 1.5rem;
+            font-weight: 600;
+        }
+        
+        .header p {
+            font-size: 0.9rem;
+            opacity: 0.9;
+            margin-top: 0.25rem;
+        }
+        
+        .main-container {
+            display: flex;
+            height: calc(100vh - 80px);
+        }
+        
+        .sidebar {
+            width: 60px;
+            background: #2c3e50;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 1rem 0;
+            transition: width 0.3s ease;
+        }
+        
+        .sidebar:hover {
+            width: 200px;
+        }
+        
+        .nav-item {
+            width: 100%;
+            padding: 1rem;
+            color: #ecf0f1;
+            text-decoration: none;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            cursor: pointer;
+            transition: background 0.2s;
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .nav-item:hover {
+            background: #34495e;
+        }
+        
+        .nav-item.active {
+            background: #3498db;
+        }
+        
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            flex-shrink: 0;
+        }
+        
+        .nav-item span {
+            white-space: nowrap;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .sidebar:hover .nav-item span {
+            opacity: 1;
+        }
+        
+        .content-area {
+            flex: 1;
+            display: flex;
+            gap: 1rem;
+            padding: 1rem;
+            overflow: hidden;
+        }
+        
+        .panel {
+            background: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        
+        .panel-header {
+            background: #4a90e2;
+            color: white;
+            padding: 1rem;
+            font-weight: 600;
+        }
+        
+        .panel-content {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        
+        .left-panel {
+            flex: 0 0 400px;
+        }
+        
+        .middle-panel {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+        
+        .right-panel {
+            flex: 0 0 350px;
+        }
+        
+        .form-group {
+            margin-bottom: 1.5rem;
+        }
+        
+        .form-group label {
+            display: block;
+            font-weight: 500;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+        }
+        
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        
+        .form-group small {
+            color: #666;
+            font-size: 0.85rem;
+            margin-top: 0.25rem;
+            display: block;
+        }
+        
+        .btn {
+            padding: 0.75rem 1.5rem;
+            border: none;
+            border-radius: 4px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .btn-primary {
+            background: #4a90e2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #357abd;
+        }
+        
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .chat-interface {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1rem;
+            background: #f8f9fa;
+            border-radius: 4px;
+            margin-bottom: 1rem;
+        }
+        
+        .message {
+            margin-bottom: 1rem;
+            padding: 0.75rem 1rem;
+            border-radius: 8px;
+            max-width: 80%;
+        }
+        
+        .message.user {
+            background: #e3f2fd;
+            margin-left: auto;
+        }
+        
+        .message.assistant {
+            background: #f3e5f5;
+        }
+        
+        .chat-input {
+            display: flex;
+            gap: 0.5rem;
+        }
+        
+        .chat-input input {
+            flex: 1;
+            padding: 0.75rem;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        
+        .log-viewer {
+            background: #1e1e1e;
+            color: #d4d4d4;
+            font-family: 'Consolas', 'Monaco', monospace;
+            font-size: 0.85rem;
+            padding: 1rem;
+            border-radius: 4px;
+            height: 300px;
+            overflow-y: auto;
+        }
+        
+        .log-line {
+            margin-bottom: 0.25rem;
+            white-space: pre-wrap;
+        }
+        
+        .log-line.info {
+            color: #4fc3f7;
+        }
+        
+        .log-line.error {
+            color: #ff5252;
+        }
+        
+        .log-line.success {
+            color: #81c784;
+        }
+        
+        .tabs {
+            display: flex;
+            border-bottom: 2px solid #ddd;
+            margin-bottom: 1rem;
+        }
+        
+        .tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: all 0.2s;
+        }
+        
+        .tab:hover {
+            background: #f8f9fa;
+        }
+        
+        .tab.active {
+            border-bottom-color: #4a90e2;
+            color: #4a90e2;
+            font-weight: 500;
+        }
+        
+        .network-actions {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+        }
+        
+        .action-card {
+            border: 1px solid #e0e0e0;
+            border-radius: 8px;
+            padding: 1.5rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .action-card:hover {
+            border-color: #4a90e2;
+            box-shadow: 0 4px 8px rgba(74, 144, 226, 0.1);
+        }
+        
+        .action-card svg {
+            width: 48px;
+            height: 48px;
+            margin-bottom: 0.75rem;
+            color: #4a90e2;
+        }
+        
+        .action-card h3 {
+            font-size: 1rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .action-card p {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .status-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.25rem 0.75rem;
+            border-radius: 16px;
+            font-size: 0.85rem;
+            font-weight: 500;
+        }
+        
+        .status-indicator.connected {
+            background: #d4edda;
+            color: #155724;
+        }
+        
+        .status-indicator.disconnected {
+            background: #f8d7da;
+            color: #721c24;
+        }
+        
+        .status-indicator::before {
+            content: '';
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: currentColor;
+        }
+        
+        .upload-area {
+            border: 2px dashed #ddd;
+            border-radius: 8px;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        
+        .upload-area:hover {
+            border-color: #4a90e2;
+            background: #f8f9fa;
+        }
+        
+        .upload-area svg {
+            width: 48px;
+            height: 48px;
+            color: #999;
+            margin-bottom: 1rem;
+        }
+        
+        .memory-stats {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1rem;
+            margin-top: 1rem;
+        }
+        
+        .stat-card {
+            background: #f8f9fa;
+            padding: 1rem;
+            border-radius: 4px;
+            text-align: center;
+        }
+        
+        .stat-card .value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #4a90e2;
+        }
+        
+        .stat-card .label {
+            font-size: 0.85rem;
+            color: #666;
+            margin-top: 0.25rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>AI Microservice - Network Automation RAG System</h1>
+        <p>Retrieval-Augmented Generation with Agentic Intelligence for Network Operations</p>
+    </div>
+    
+    <div class="main-container">
+        <!-- Sidebar Navigation -->
+        <nav class="sidebar">
+            <a class="nav-item active">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6V4m0 2a2 2 0 100 4m0-4a2 2 0 110 4m-6 8a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4m6 6v10m6-2a2 2 0 100-4m0 4a2 2 0 110-4m0 4v2m0-6V4"></path>
+                </svg>
+                <span>Configuration</span>
+            </a>
+            <a class="nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"></path>
+                </svg>
+                <span>Chat Interface</span>
+            </a>
+            <a class="nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                </svg>
+                <span>Documents</span>
+            </a>
+            <a class="nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19.428 15.428a2 2 0 00-1.022-.547l-2.387-.477a6 6 0 00-3.86.517l-.318.158a6 6 0 01-3.86.517L6.05 15.21a2 2 0 00-1.806.547M8 4h8l-1 1v5.172a2 2 0 00.586 1.414l5 5c1.26 1.26.367 3.414-1.415 3.414H4.828c-1.782 0-2.674-2.154-1.414-3.414l5-5A2 2 0 009 10.172V5L8 4z"></path>
+                </svg>
+                <span>Network Ops</span>
+            </a>
+            <a class="nav-item">
+                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path>
+                </svg>
+                <span>Analytics</span>
+            </a>
+        </nav>
+        
+        <!-- Main Content Area -->
+        <div class="content-area">
+            <!-- Left Panel - Configuration -->
+            <div class="panel left-panel">
+                <div class="panel-header">AI & RAG Configuration</div>
+                <div class="panel-content">
+                    <form id="ai-config-form">
+                        <div class="form-group">
+                            <label for="ollama-model">Ollama Model</label>
+                            <select id="ollama-model">
+                                <option>llama3.2:1b</option>
+                                <option>phi3:mini</option>
+                                <option>phi4-mini:latest</option>
+                                <option>starling-lm:7b-alpha-q5_K_M</option>
+                                <option>llama3:latest</option>
+                            </select>
+                            <small>Specify the Ollama model to use for generation.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="embedding-model">ChromaDB Embedding Model</label>
+                            <select id="embedding-model">
+                                <option>nomic-embed-text</option>
+                                <option>mxbai-embed-large</option>
+                                <option>all-MiniLM-L6-v2</option>
+                            </select>
+                            <small>Specify the sentence-transformer model for embeddings.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label for="ai-agent">AI Agent Type</label>
+                            <select id="ai-agent">
+                                <option>Default RAG Agent</option>
+                                <option>Agentic RAG with Memory</option>
+                                <option>Network Automation Agent</option>
+                                <option>Multi-Strategy Retrieval Agent</option>
+                            </select>
+                            <small>Select the type of AI agent interaction model.</small>
+                        </div>
+                        
+                        <div class="form-group">
+                            <label>Memory Configuration</label>
+                            <select>
+                                <option>Hierarchical (Short/Medium/Long-term)</option>
+                                <option>Episodic Only</option>
+                                <option>Semantic Graph</option>
+                                <option>Full Memory Stack</option>
+                            </select>
+                            <small>Configure the memory architecture.</small>
+                        </div>
+                        
+                        <button type="submit" class="btn btn-primary" style="width: 100%;">Save Configuration</button>
+                    </form>
+                    
+                    <div class="memory-stats">
+                        <div class="stat-card">
+                            <div class="value">1.2M</div>
+                            <div class="label">Documents Indexed</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value">8.4GB</div>
+                            <div class="label">Vector Storage</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value">523ms</div>
+                            <div class="label">Avg. Retrieval</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value">98.3%</div>
+                            <div class="label">Accuracy</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Middle Panel - Main Interface -->
+            <div class="middle-panel">
+                <!-- Chat/Query Interface -->
+                <div class="panel" style="flex: 1;">
+                    <div class="panel-header">RAG Query Interface</div>
+                    <div class="panel-content chat-interface">
+                        <div class="tabs">
+                            <div class="tab active">Chat Mode</div>
+                            <div class="tab">Query Analysis</div>
+                            <div class="tab">Network Commands</div>
+                        </div>
+                        
+                        <div class="chat-messages">
+                            <div class="message user">
+                                How do I configure OSPF on a Cisco router for area 0?
+                            </div>
+                            <div class="message assistant">
+                                To configure OSPF on a Cisco router for area 0, follow these steps:
+                                
+                                1. Enter global configuration mode:
+                                   <code>Router> enable</code>
+                                   <code>Router# configure terminal</code>
+                                
+                                2. Enable OSPF process:
+                                   <code>Router(config)# router ospf 1</code>
+                                
+                                3. Configure area 0 networks:
+                                   <code>Router(config-router)# network 192.168.1.0 0.0.0.255 area 0</code>
+                                
+                                <strong>Sources:</strong> [Network Config Guide v2.1], [Cisco OSPF Manual]
+                            </div>
+                        </div>
+                        
+                        <div class="chat-input">
+                            <input type="text" placeholder="Ask about network configurations, policies, or documentation...">
+                            <button class="btn btn-primary">Send</button>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Network Operations -->
+                <div class="panel">
+                    <div class="panel-header">Network Automation Operations</div>
+                    <div class="panel-content">
+                        <div class="network-actions">
+                            <div class="action-card">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                                </svg>
+                                <h3>Push Config</h3>
+                                <p>Deploy configurations to devices</p>
+                            </div>
+                            <div class="action-card">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M9 19l3 3m0 0l3-3m-3 3V10"></path>
+                                </svg>
+                                <h3>Retrieve Config</h3>
+                                <p>Get current device configurations</p>
+                            </div>
+                            <div class="action-card">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+                                </svg>
+                                <h3>Baseline Check</h3>
+                                <p>Compare against baseline configs</p>
+                            </div>
+                            <div class="action-card">
+                                <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path>
+                                </svg>
+                                <h3>Deviation Approval</h3>
+                                <p>Review and approve changes</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Right Panel - Live Logs & Document Upload -->
+            <div class="right-panel">
+                <!-- Document Upload -->
+                <div class="panel" style="margin-bottom: 1rem;">
+                    <div class="panel-header">Document Ingestion</div>
+                    <div class="panel-content">
+                        <div class="upload-area">
+                            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"></path>
+                            </svg>
+                            <p>Drop files here or click to upload</p>
+                            <small>Supports: .txt, .md, .pdf, .docx, .xlsx</small>
+                        </div>
+                        
+                        <div style="margin-top: 1rem;">
+                            <small style="color: #666;">Status: <span class="status-indicator connected">ChromaDB Connected</span></small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Live Log Viewer -->
+                <div class="panel" style="flex: 1;">
+                    <div class="panel-header">Live Log Viewer</div>
+                    <div class="panel-content">
+                        <small style="color: #666; margin-bottom: 0.5rem; display: block;">
+                            Real-time logs from RAG processes, AI agent interactions, and backend events.
+                        </small>
+                        
+                        <div id="log-viewer" class="log-viewer">
+                            <div class="log-line info">[INFO] Log viewer initialized. Waiting for logs...</div>
+                        </div>
+                        
+                        <button class="btn btn-secondary" style="margin-top: 1rem;" onclick="document.getElementById('log-viewer').innerHTML = '';">Clear Logs</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Fetch initial AI configuration
+            fetch('/api/ai/config')
+                .then(response => response.json())
+                .then(config => {
+                    if (config.error) {
+                        console.error('Error fetching AI config:', config.error);
+                        return;
+                    }
+                    document.getElementById('ollama-model').value = config.ollama_model || 'llama3:latest';
+                    document.getElementById('embedding-model').value = config.embedding_model || 'nomic-embed-text';
+                    document.getElementById('ai-agent').value = config.ai_agent_type || 'Default RAG Agent';
+                })
+                .catch(error => {
+                    console.error('Error fetching AI config:', error);
+                });
+
+            // Handle form submission
+            const configForm = document.getElementById('ai-config-form');
+            configForm.addEventListener('submit', function (event) {
+                event.preventDefault();
+                const newConfig = {
+                    ollama_model: document.getElementById('ollama-model').value,
+                    embedding_model: document.getElementById('embedding-model').value,
+                    ai_agent_type: document.getElementById('ai-agent').value
+                };
+
+                fetch('/api/ai/config', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(newConfig),
+                })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.message) {
+                        console.log(data.message); // Maybe show a less intrusive notification
+                    } else {
+                        console.error('Error saving config:', data.error || 'Unknown error');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error saving AI config:', error);
+                });
+            });
+
+            // Real-time log fetching
+            const logViewer = document.getElementById('log-viewer');
+            function fetchLogs() {
+                fetch('/api/logs')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.logs) {
+                            const formattedLogs = data.logs.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/\n/g, '<br>');
+                            logViewer.innerHTML = formattedLogs;
+                            logViewer.scrollTop = logViewer.scrollHeight;
+                        } else if (data.error) {
+                            logViewer.innerHTML += `<div class="log-line error">Error fetching logs: ${data.error}</div>`;
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching logs:', error);
+                        logViewer.innerHTML += '<div class="log-line error">Failed to connect to log server.</div>';
+                    });
+            }
+            setInterval(fetchLogs, 5000);
+        });
+    </script>
+</body>
+</html>

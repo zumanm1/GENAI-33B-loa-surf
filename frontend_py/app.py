@@ -1,9 +1,14 @@
+import sys
+from pathlib import Path
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
 from flask import Flask, render_template, request, jsonify, session, redirect, url_for, flash
 import requests
-import functools
-import secrets
-from datetime import datetime
 import os
+import functools
+import logging
+from werkzeug.utils import secure_filename
+from frontend_py.rag_processor import RAGProcessor
 
 app = Flask(__name__, template_folder='templates')
 app.secret_key = os.environ.get('FLASK_SECRET_KEY', 'net_swift_frontend_secret_key')
@@ -17,6 +22,14 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 
 if not os.path.exists(UPLOAD_FOLDER):
     os.makedirs(UPLOAD_FOLDER)
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
+
+# Initialize the RAG Processor
+# This will automatically fetch the AI config from the backend on startup.
+rag_processor = RAGProcessor(docs_path=app.config['UPLOAD_FOLDER'])
 
 def api_request(method, endpoint, **kwargs):
     """Make an authenticated request to the backend API."""
@@ -158,6 +171,43 @@ def login():
 def allowed_file(filename):
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
+@app.route('/api/rag/upload', methods=['POST'])
+@login_required
+def upload_rag_document():
+    if 'file' not in request.files:
+        return jsonify({'error': 'No file part'}), 400
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'error': 'No selected file'}), 400
+    
+    if file:
+        filename = secure_filename(file.filename)
+        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
+        file.save(file_path)
+
+        # Re-process all documents in the upload folder
+        try:
+            success = rag_processor.process_documents()
+            if success:
+                return jsonify({'message': f'File "{filename}" uploaded and documents re-indexed successfully.'})
+            else:
+                return jsonify({'error': 'Failed to process documents after upload.'}), 500
+        except Exception as e:
+            logger.error(f"Error processing uploaded file: {e}")
+            return jsonify({'error': 'Failed to process document.'}), 500
+
+@app.route('/api/rag/query', methods=['POST'])
+@login_required
+def rag_query():
+    data = request.get_json()
+    query = data.get('query')
+    if not query:
+        return jsonify({'error': 'Query is required'}), 400
+    
+    # Use the RAGProcessor instance to handle the query
+    response = rag_processor.query(query)
+    return jsonify({'response': response})
+
 @app.route('/api/upload_document', methods=['POST'])
 @login_required
 def upload_document():
@@ -234,10 +284,10 @@ def register():
             flash(f"Error connecting to backend: {e}", 'danger')
     return render_template('register.html')
 
-@app.route('/GENAI_NETWORKS_ENGINEER')
+@app.route('/genai_networks_engineer')
 @login_required
 def genai_networks_engineer():
-    return render_template('genai_engineer.html', active_tab='genai_engineer')
+    return render_template('genai_networks_engineer.html', active_tab='genai_engineer')
 
 @app.route('/logout')
 def logout():

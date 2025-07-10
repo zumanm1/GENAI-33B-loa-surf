@@ -1,0 +1,6 @@
+{
+    "ollama_model": "llama2",
+    "embedding_model": "all-MiniLM-L6-v2",
+    "ai_agent_type": "Default RAG Agent",
+    "vector_store_path": "chroma_db_store"
+}

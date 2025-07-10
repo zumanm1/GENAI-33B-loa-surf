@@ -9,9 +9,11 @@ const crypto = require('crypto');
 (async () => {
     console.log('Starting Puppeteer test...');
     const browser = await puppeteer.launch();
-    const page = await browser.newPage();
+    const context = await browser.createIncognitoBrowserContext();
+    const page = await context.newPage();
 
     try {
+
         // Generate unique credentials
         const testUsername = `testuser_${crypto.randomBytes(4).toString('hex')}`;
         const testPassword = 'a_secure_password';
