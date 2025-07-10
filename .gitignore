@@ -18,6 +18,18 @@ env/
 coverage.xml
 htmlcov/
 
+# Node.js
+/node_modules
+/npm-debug.log
+/yarn-error.log
+
+# DB files
+*.db-shm
+*.db-wal
+
+# Images
+*.png
+
 # Logs
 logs/
 *.log
