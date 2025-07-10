@@ -1,0 +1,243 @@
+{% extends "layout.html" %}
+{% block title %}Network Ops - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="panel-container">
+    <!-- Left Panel: Device List -->  
+    <div class="panel left-panel">
+        <div class="panel-header">Network Devices</div>
+        <div class="panel-content">
+            <div class="device-controls">
+                <div class="search-bar">
+                    <input type="text" id="deviceSearch" placeholder="Search devices...">
+                    <button id="searchDevicesBtn" class="btn"><i class="fas fa-search"></i></button>
+                </div>
+                <button id="refreshDevicesBtn" class="btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button id="addDeviceBtn" class="btn"><i class="fas fa-plus"></i> Add Device</button>
+            </div>
+            
+            <div class="device-list">
+                <table id="devicesTable">
+                    <thead>
+                        <tr>
+                            <th>Hostname</th>
+                            <th>IP Address</th>
+                            <th>Type</th>
+                            <th>Status</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="deviceRows">
+                        <!-- Device entries will be populated here -->
+                        <tr class="loading-row">
+                            <td colspan="5">Loading devices...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middle Panel: Device Details & Configuration -->  
+    <div class="panel middle-panel">
+        <div class="panel-header">Device Configuration</div>
+        <div class="panel-content">
+            <div id="configPanel" class="config-panel">
+                <div class="no-device-selected">
+                    <i class="fas fa-server fa-3x"></i>
+                    <p>Select a device from the list to view its configuration</p>
+                </div>
+                
+                <div class="device-detail" style="display:none">
+                    <div class="device-header">
+                        <h3 id="selectedDeviceTitle">Device Name</h3>
+                        <div class="device-badges">
+                            <span id="deviceTypeBadge" class="badge">Router</span>
+                            <span id="deviceStatusBadge" class="badge">Online</span>
+                        </div>
+                    </div>
+                    
+                    <div class="config-tabs">
+                        <button class="tab-btn active" data-tab="running-config">Running Config</button>
+                        <button class="tab-btn" data-tab="proposed-changes">Proposed Changes</button>
+                        <button class="tab-btn" data-tab="device-stats">Statistics</button>
+                    </div>
+                    
+                    <div class="config-content">
+                        <div id="running-config" class="tab-content active">
+                            <div class="config-actions">
+                                <button id="refreshConfigBtn" class="btn-sm"><i class="fas fa-sync-alt"></i> Refresh</button>
+                                <button id="downloadConfigBtn" class="btn-sm"><i class="fas fa-download"></i> Download</button>
+                                <button id="proposeChangeBtn" class="btn-sm"><i class="fas fa-edit"></i> Propose Change</button>
+                            </div>
+                            <pre id="configOutput" class="config-output">Select a device to view its configuration.</pre>
+                        </div>
+                        
+                        <div id="proposed-changes" class="tab-content">
+                            <div id="proposalsList" class="proposals-list">
+                                <p>No proposed changes for this device.</p>
+                            </div>
+                        </div>
+                        
+                        <div id="device-stats" class="tab-content">
+                            <div class="stats-container">
+                                <div class="stat-card">
+                                    <div class="stat-title">Uptime</div>
+                                    <div id="uptimeStat" class="stat-value">--</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-title">CPU Usage</div>
+                                    <div id="cpuStat" class="stat-value">--</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-title">Memory</div>
+                                    <div id="memoryStat" class="stat-value">--</div>
+                                </div>
+                                <div class="stat-card">
+                                    <div class="stat-title">Interfaces</div>
+                                    <div id="interfacesStat" class="stat-value">--</div>
+                                </div>
+                            </div>
+                            <div class="chart-container">
+                                <canvas id="networkChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Operations & Tasks -->  
+    <div class="panel right-panel">
+        <div class="panel-header">Network Operations</div>
+        <div class="panel-content">
+            <div class="operations-tabs">
+                <button class="tab-btn active" data-tab="ai-assistant">AI Assistant</button>
+                <button class="tab-btn" data-tab="tasks">Tasks</button>
+                <button class="tab-btn" data-tab="audit-log">Audit Log</button>
+            </div>
+            
+            <div class="operations-content">
+                <div id="ai-assistant" class="tab-content active">
+                    <div class="network-ai-prompt">
+                        <p>Ask the AI assistant to help with network operations:</p>
+                        <div class="network-chat-input">
+                            <input type="text" id="networkAiInput" placeholder="e.g., 'Check interface status on Router1'">
+                            <button id="sendNetworkQueryBtn" class="btn">Send</button>
+                        </div>
+                    </div>
+                    <div id="networkAiHistory" class="network-ai-history"></div>
+                </div>
+                
+                <div id="tasks" class="tab-content">
+                    <div class="tasks-header">
+                        <h4>Scheduled Tasks</h4>
+                        <button id="newTaskBtn" class="btn-sm">New Task</button>
+                    </div>
+                    <div id="tasksList" class="tasks-list">
+                        <p>No scheduled tasks.</p>
+                    </div>
+                </div>
+                
+                <div id="audit-log" class="tab-content">
+                    <div class="audit-header">
+                        <h4>Configuration Changes</h4>
+                        <div class="audit-filters">
+                            <select id="auditUserFilter">
+                                <option value="all">All Users</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div id="auditEntries" class="audit-entries">
+                        <p>No recent configuration changes.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Add Device Modal -->
+<div id="addDeviceModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Add New Device</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="addDeviceForm">
+                <div class="form-group">
+                    <label for="deviceHostname">Hostname</label>
+                    <input type="text" id="deviceHostname" name="hostname" required>
+                </div>
+                <div class="form-group">
+                    <label for="deviceIp">IP Address</label>
+                    <input type="text" id="deviceIp" name="ip_address" required>
+                </div>
+                <div class="form-group">
+                    <label for="deviceType">Device Type</label>
+                    <select id="deviceType" name="device_type">
+                        <option value="router">Router</option>
+                        <option value="switch">Switch</option>
+                        <option value="firewall">Firewall</option>
+                        <option value="access_point">Access Point</option>
+                        <option value="server">Server</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="deviceVendor">Vendor</label>
+                    <select id="deviceVendor" name="vendor">
+                        <option value="cisco">Cisco</option>
+                        <option value="juniper">Juniper</option>
+                        <option value="arista">Arista</option>
+                        <option value="palo_alto">Palo Alto</option>
+                        <option value="fortinet">Fortinet</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="deviceCredentials">Credential Profile</label>
+                    <select id="deviceCredentials" name="credential_profile">
+                        <option value="default">Default</option>
+                        <option value="secure">Secure</option>
+                        <option value="custom">Custom</option>
+                    </select>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Add Device</button>
+                    <button type="button" class="btn btn-cancel" id="cancelAddDevice">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Propose Change Modal -->
+<div id="proposeChangeModal" class="modal">
+    <div class="modal-content">
+        <div class="modal-header">
+            <h3>Propose Configuration Change</h3>
+            <span class="close">&times;</span>
+        </div>
+        <div class="modal-body">
+            <form id="proposeChangeForm">
+                <div class="form-group">
+                    <label for="configChanges">Configuration Changes</label>
+                    <textarea id="configChanges" name="config_changes" rows="10" required></textarea>
+                </div>
+                <div class="form-group">
+                    <label for="changeDescription">Description</label>
+                    <input type="text" id="changeDescription" name="description" placeholder="Describe the purpose of these changes" required>
+                </div>
+                <div class="form-actions">
+                    <button type="submit" class="btn">Submit Proposal</button>
+                    <button type="button" class="btn btn-cancel" id="cancelProposal">Cancel</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/network_ops.js') }}"></script>
+{% endblock %}

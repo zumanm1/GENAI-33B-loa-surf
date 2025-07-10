@@ -1,0 +1,195 @@
+{% extends "layout.html" %}
+{% block title %}Analytics - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="panel-container">
+    <!-- Top Controls Panel -->  
+    <div class="panel full-width">
+        <div class="panel-header">Analytics Dashboard</div>
+        <div class="panel-content">
+            <div class="analytics-controls">
+                <div class="time-range-selector">
+                    <label for="timeRange">Time Range:</label>
+                    <select id="timeRange">
+                        <option value="day">Last 24 Hours</option>
+                        <option value="week" selected>Last 7 Days</option>
+                        <option value="month">Last 30 Days</option>
+                        <option value="quarter">Last 90 Days</option>
+                    </select>
+                </div>
+                <div class="date-range-picker">
+                    <label for="startDate">Custom Range:</label>
+                    <input type="date" id="startDate">
+                    <span>to</span>
+                    <input type="date" id="endDate">
+                    <button id="applyDateRange" class="btn">Apply</button>
+                </div>
+                <button id="refreshAnalytics" class="btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button id="exportData" class="btn"><i class="fas fa-download"></i> Export</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- KPI Metrics -->  
+    <div class="panel full-width">
+        <div class="panel-content">
+            <div class="metrics-container">
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-network-wired"></i></div>
+                    <div class="metric-details">
+                        <h4>Network Devices</h4>
+                        <div class="metric-value" id="deviceCount">--</div>
+                        <div class="metric-trend positive"><i class="fas fa-arrow-up"></i> <span id="deviceTrend">0%</span></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-exclamation-triangle"></i></div>
+                    <div class="metric-details">
+                        <h4>Alerts</h4>
+                        <div class="metric-value" id="alertCount">--</div>
+                        <div class="metric-trend negative"><i class="fas fa-arrow-up"></i> <span id="alertTrend">0%</span></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="metric-details">
+                        <h4>Avg. Bandwidth</h4>
+                        <div class="metric-value" id="bandwidthAvg">-- Mbps</div>
+                        <div class="metric-trend positive"><i class="fas fa-arrow-up"></i> <span id="bandwidthTrend">0%</span></div>
+                    </div>
+                </div>
+                
+                <div class="metric-card">
+                    <div class="metric-icon"><i class="fas fa-robot"></i></div>
+                    <div class="metric-details">
+                        <h4>AI Queries</h4>
+                        <div class="metric-value" id="aiQueryCount">--</div>
+                        <div class="metric-trend positive"><i class="fas fa-arrow-up"></i> <span id="aiQueryTrend">0%</span></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 1 -->  
+    <div class="panel left-panel">
+        <div class="panel-header">Network Traffic</div>
+        <div class="panel-content">
+            <div class="chart-container">
+                <canvas id="networkTrafficChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel right-panel">
+        <div class="panel-header">Device Health</div>
+        <div class="panel-content">
+            <div class="chart-container">
+                <canvas id="deviceHealthChart"></canvas>
+            </div>
+        </div>
+    </div>
+
+    <!-- Charts Row 2 -->  
+    <div class="panel left-panel">
+        <div class="panel-header">AI Usage Analytics</div>
+        <div class="panel-content">
+            <div class="chart-container">
+                <canvas id="aiUsageChart"></canvas>
+            </div>
+            <div class="chart-legend">
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #4c9aff"></div>
+                    <div class="legend-label">Chat Queries</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #36b37e"></div>
+                    <div class="legend-label">Network Analysis</div>
+                </div>
+                <div class="legend-item">
+                    <div class="legend-color" style="background-color: #ff5630"></div>
+                    <div class="legend-label">Document Assistance</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="panel right-panel">
+        <div class="panel-header">Top Alerts</div>
+        <div class="panel-content">
+            <div class="alert-list-container">
+                <table id="alertsTable" class="analytics-table">
+                    <thead>
+                        <tr>
+                            <th>Severity</th>
+                            <th>Device</th>
+                            <th>Alert Type</th>
+                            <th>Time</th>
+                            <th>Status</th>
+                        </tr>
+                    </thead>
+                    <tbody id="alertRows">
+                        <!-- Alert entries will be populated here -->
+                        <tr>
+                            <td><span class="alert-badge critical">Critical</span></td>
+                            <td>Router1</td>
+                            <td>CPU Overload</td>
+                            <td>2 hours ago</td>
+                            <td><span class="status-badge active">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="alert-badge warning">Warning</span></td>
+                            <td>Switch3</td>
+                            <td>Port Down</td>
+                            <td>5 hours ago</td>
+                            <td><span class="status-badge active">Active</span></td>
+                        </tr>
+                        <tr>
+                            <td><span class="alert-badge info">Info</span></td>
+                            <td>Firewall2</td>
+                            <td>Config Change</td>
+                            <td>1 day ago</td>
+                            <td><span class="status-badge resolved">Resolved</span></td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Bottom Panel: Analytics Insights -->  
+    <div class="panel full-width">
+        <div class="panel-header">Network Insights</div>
+        <div class="panel-content">
+            <div id="insightsContainer" class="insights-container">
+                <div class="insight-card">
+                    <div class="insight-icon"><i class="fas fa-lightbulb"></i></div>
+                    <div class="insight-content">
+                        <h4>Bandwidth Optimization</h4>
+                        <p>Switch3 shows bandwidth utilization 43% higher than average. Consider QoS policy adjustments or investigate traffic patterns.</p>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-icon"><i class="fas fa-lightbulb"></i></div>
+                    <div class="insight-content">
+                        <h4>Security Alert Pattern</h4>
+                        <p>Analysis shows recurring security alerts from Firewall1 during off-hours (2AM-4AM). Consider investigating potential scheduled system activity or suspicious patterns.</p>
+                    </div>
+                </div>
+                <div class="insight-card">
+                    <div class="insight-icon"><i class="fas fa-lightbulb"></i></div>
+                    <div class="insight-content">
+                        <h4>Network Reliability</h4>
+                        <p>Overall network uptime improved by 1.3% this month compared to last month, indicating recent infrastructure upgrades have been effective.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="{{ url_for('static', filename='js/analytics.js') }}"></script>
+{% endblock %}

@@ -1,0 +1,45 @@
+{% extends "layout.html" %}
+{% block title %}Chat - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="panel-container">
+    <!-- Left Panel: Chat Controls & Agent Selection -->
+    <div class="panel left-panel" style="flex: 1">
+        <div class="panel-header">Chat Controls</div>
+        <div class="panel-content">
+            <div class="form-group">
+                <label for="chatAgentType">AI Agent Type</label>
+                <select id="chatAgentType" name="agent_type">
+                    <option value="Chat">Simple Chat</option>
+                    <option value="RAG">RAG</option>
+                    <option value="Agentic RAG">Agentic RAG</option>
+                    <option value="AI Agent">AI Agent</option>
+                </select>
+            </div>
+            <button type="button" id="clearChatBtn" class="btn">Clear Chat</button>
+            <div class="agent-info">
+                <h4>Current Configuration</h4>
+                <div id="currentConfig">
+                    <p><strong>Model:</strong> <span id="currentModel">Loading...</span></p>
+                    <p><strong>Agent Type:</strong> <span id="currentAgentType">Loading...</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Middle Panel: Chat Interface -->
+    <div class="panel middle-panel" style="flex: 3">
+        <div class="panel-header">Chat Interface</div>
+        <div class="panel-content">
+            <div class="chat-window">
+                <div id="chatHistory" class="chat-history"></div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Ask a question...">
+                <button id="sendQueryBtn" class="btn">Send</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+{% endblock %}

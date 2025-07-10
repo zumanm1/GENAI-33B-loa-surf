@@ -11,6 +11,9 @@ from langchain.prompts import PromptTemplate
 from langchain.agents import AgentExecutor, create_tool_calling_agent
 from langchain_core.tools import tool
 from langchain import hub
+from langchain.memory import ConversationBufferMemory
+from langchain_core.prompts import MessagesPlaceholder
+from langchain_core.messages import AIMessage, HumanMessage
 import logging
 from logging.handlers import RotatingFileHandler
 
@@ -80,6 +83,7 @@ class RAGProcessor:
         self.PROMPT = PromptTemplate(
             template=self.prompt_template, input_variables=["context", "question"]
         )
+        self.memory = ConversationBufferMemory(memory_key="chat_history", return_messages=True)
 
     def _get_llm(self):
         """Initializes the LLM with the model from the config."""
@@ -116,40 +120,102 @@ class RAGProcessor:
             logger.error(f"Error processing documents: {e}")
             return "An error occurred while processing your request. Please ensure Ollama is running and the model is available."
 
-    def query(self, question: str):
+    def _create_rag_tool(self):
+        """Creates a tool for the agent to query the RAG knowledge base."""
         if self.vector_store is None:
-            logger.warning("Vector store not initialized. Processing documents first.")
-            processed = self.process_documents()
-            if not processed:
-                return "Vector store is not available. Please upload documents first."
+            logger.warning("Vector store not initialized for RAG tool. Processing documents.")
+            self.process_documents()
+            if self.vector_store is None:
+                return None
+
+        qa_chain = RetrievalQA.from_chain_type(
+            self._get_llm(),
+            retriever=self.vector_store.as_retriever(),
+            chain_type_kwargs={"prompt": self.PROMPT}
+        )
+        
+        @tool
+        def search_knowledge_base(query: str) -> str:
+            """Searches the knowledge base for information about network configurations, best practices, and troubleshooting guides."""
+            return qa_chain({"query": query})["result"]
+        
+        return search_knowledge_base
+
+    def reload_config(self):
+        """Reloads the AI configuration from the backend."""
+        logger.info("Reloading AI configuration...")
+        self.config = get_ai_config()
+        # Reset the vector store so it is re-created with new embeddings if necessary on the next query.
+        self.vector_store = None
+        logger.info("AI configuration reloaded. Vector store will be re-indexed on the next RAG query.")
+
+    def handle_query(self, query: str):
+        """Handles a user query based on the configured AI agent type."""
+        agent_type = self.config.get("ai_agent_type", "Default RAG Agent")
+        logger.info(f"Handling query with agent type: {agent_type}")
+
+        llm = self._get_llm()
 
         try:
-            llm = self._get_llm()
-            qa_chain = RetrievalQA.from_chain_type(
-                llm,
-                retriever=self.vector_store.as_retriever(),
-                chain_type_kwargs={"prompt": self.PROMPT}
-            )
-            result = qa_chain({"query": question})
-            return result["result"]
-        except Exception as e:
-            logger.error(f"Error during query: {e}")
-            return "An error occurred. Ensure Ollama is running and documents have been uploaded."
+            if agent_type == "Chat":
+                # Mode 1: Simple LLM chat, no tools, no RAG
+                return llm.invoke(question).content
 
-    def agent_chat(self, question: str):
-        try:
-            llm = self._get_llm()
-            tools = [get_router_config]
-            prompt = hub.pull("hwchase17/openai-functions-agent")
-            
-            agent = create_tool_calling_agent(llm, tools, prompt)
-            agent_executor = AgentExecutor(agent=agent, tools=tools, verbose=True)
-            
-            response = agent_executor.invoke({"input": question})
-            return response.get("output", "No output from agent.")
+            elif agent_type == "RAG":
+                # Mode 2: RAG-only query with memory
+                # Note: A more robust implementation would use ConversationalRetrievalChain
+                # but for simplicity, we'll manually add history to the context.
+                rag_tool = self._create_rag_tool()
+                if not rag_tool:
+                    return "Vector store is not available. Please upload documents first."
+                
+                history = self.memory.chat_memory.messages
+                history_str = "\n".join([f"{type(msg).__name__}: {msg.content}" for msg in history])
+                enriched_question = f"Considering the following chat history:\n{history_str}\n\nNow answer this question: {question}"
+                
+                response = rag_tool.func(enriched_question)
+                self.memory.chat_memory.add_user_message(question)
+                self.memory.chat_memory.add_ai_message(response)
+                return response
+
+            elif agent_type == "AI Agent":
+                # Mode 3: Agent with tools, no RAG
+                tools = [get_router_config]
+                prompt = hub.pull("hwchase17/openai-functions-agent")
+                prompt.messages.insert(0, MessagesPlaceholder(variable_name="chat_history"))
+                agent = create_tool_calling_agent(llm, tools, prompt)
+                agent_executor = AgentExecutor(agent=agent, tools=tools, memory=self.memory, verbose=True)
+                response = agent_executor.invoke({"input": question})
+                return response.get("output", "No output from agent.")
+
+            elif agent_type == "Agentic RAG":
+                # Mode 4: Agent with both RAG and other tools
+                rag_tool = self._create_rag_tool()
+                tools = [get_router_config] # Add other tools here
+                if rag_tool:
+                    tools.append(rag_tool)
+                
+                if not tools:
+                     return "No tools or RAG available for the agentic RAG model."
+
+                prompt = hub.pull("hwchase17/openai-functions-agent")
+                prompt.messages.insert(0, MessagesPlaceholder(variable_name="chat_history"))
+                agent = create_tool_calling_agent(llm, tools, prompt)
+                agent_executor = AgentExecutor(agent=agent, tools=tools, memory=self.memory, verbose=True)
+                response = agent_executor.invoke({"input": question})
+                return response.get("output", "No output from agent.")
+
+            else:
+                logger.warning(f"Unknown agent type: {agent_type}. Defaulting to RAG.")
+                # Fallback to RAG
+                rag_tool = self._create_rag_tool()
+                if not rag_tool:
+                    return "Vector store is not available. Please upload documents first."
+                return rag_tool.func(question)
+
         except Exception as e:
-            logger.error(f"Error in agent_chat: {e}")
-            return "An error occurred while processing your agent request. Please ensure Ollama is running."
+            logger.error(f"An error occurred while handling the query with agent type {agent_type}: {e}")
+            return "An error occurred. Please check the logs and ensure all services are running correctly."
 
 def get_device_config(hostname: str, api_session: requests.Session) -> str:
     """Tool for the AI agent. Fetches the running configuration for a specific device by its hostname."""

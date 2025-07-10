@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}GENAI Networks Engineer{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/styles.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="container">
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <a href="/" class="sidebar-logo-link">
+                    <img src="{{ url_for('static', filename='images/logo.svg') }}" alt="Logo" class="sidebar-logo">
+                    <span class="sidebar-logo-text">Net-Swift</span>
+                </a>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="{{ url_for('config') }}" class="nav-item {% if page == 'config' %}active{% endif %}">
+                    <i class="fas fa-cogs"></i>
+                    <span>Configuration</span>
+                </a>
+                <a href="{{ url_for('chat_page') }}" class="nav-item {% if page == 'chat' %}active{% endif %}">
+                    <i class="fas fa-comments"></i>
+                    <span>Chat Interface</span>
+                </a>
+                <a href="{{ url_for('documents_page') }}" class="nav-item {% if page == 'documents' %}active{% endif %}">
+                    <i class="fas fa-file-alt"></i>
+                    <span>Documents</span>
+                </a>
+                <a href="{{ url_for('network_ops_page') }}" class="nav-item {% if page == 'network_ops' %}active{% endif %}">
+                    <i class="fas fa-network-wired"></i>
+                    <span>Network Ops</span>
+                </a>
+                <a href="{{ url_for('analytics_page') }}" class="nav-item {% if page == 'analytics' %}active{% endif %}">
+                    <i class="fas fa-chart-line"></i>
+                    <span>Analytics</span>
+                </a>
+            </nav>
+        </aside>
+        <main class="main-content">
+            {% block content %}{% endblock %}
+        </main>
+    </div>
+    <script src="{{ url_for('static', filename='js/main.js') }}"></script>
+</body>
+</html>

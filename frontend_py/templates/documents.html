@@ -1,0 +1,95 @@
+{% extends "layout.html" %}
+{% block title %}Documents - {{ super() }}{% endblock %}
+
+{% block content %}
+<div class="panel-container">
+    <!-- Left Panel: Upload and Ingestion -->  
+    <div class="panel left-panel">
+        <div class="panel-header">Document Upload</div>
+        <div class="panel-content">
+            <div class="document-ingestion">
+                <h4>Upload Network Documents</h4>
+                <p>Upload network documents (configurations, troubleshooting guides, best practices) to enhance the AI assistant's knowledge.</p>
+                <form id="uploadForm" enctype="multipart/form-data">
+                    <div class="form-group">
+                        <label for="fileInput">Select File</label>
+                        <input type="file" name="file" id="fileInput" class="file-input">
+                    </div>
+                    <div class="form-group">
+                        <label for="documentCategory">Document Category</label>
+                        <select id="documentCategory" name="category">
+                            <option value="network_config">Network Configuration</option>
+                            <option value="troubleshooting">Troubleshooting Guide</option>
+                            <option value="best_practice">Best Practices</option>
+                            <option value="manual">Device Manual</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="documentDescription">Description (optional)</label>
+                        <textarea id="documentDescription" name="description" rows="3" placeholder="Enter a brief description of this document..."></textarea>
+                    </div>
+                    <button type="submit" class="btn">Upload Document</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Right Panel: Document Library -->  
+    <div class="panel middle-panel">
+        <div class="panel-header">Document Library</div>
+        <div class="panel-content">
+            <div class="document-controls">
+                <div class="search-bar">
+                    <input type="text" id="documentSearch" placeholder="Search documents...">
+                    <button id="searchBtn" class="btn"><i class="fas fa-search"></i></button>
+                </div>
+                <div class="filter-controls">
+                    <select id="categoryFilter">
+                        <option value="all">All Categories</option>
+                        <option value="network_config">Network Configuration</option>
+                        <option value="troubleshooting">Troubleshooting Guide</option>
+                        <option value="best_practice">Best Practices</option>
+                        <option value="manual">Device Manual</option>
+                        <option value="other">Other</option>
+                    </select>
+                </div>
+            </div>
+            
+            <div class="document-list">
+                <table id="documentsTable">
+                    <thead>
+                        <tr>
+                            <th>Filename</th>
+                            <th>Category</th>
+                            <th>Uploaded</th>
+                            <th>Size</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentRows">
+                        <!-- Document entries will be populated here -->
+                        <tr class="loading-row">
+                            <td colspan="5">Loading documents...</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+            
+            <div class="document-stats">
+                <div class="stat-item">
+                    <span class="stat-label">Total Documents:</span>
+                    <span id="totalDocuments" class="stat-value">0</span>
+                </div>
+                <div class="stat-item">
+                    <span class="stat-label">Vector Store Size:</span>
+                    <span id="vectorStoreSize" class="stat-value">0 MB</span>
+                </div>
+                <button id="refreshDocumentsBtn" class="btn"><i class="fas fa-sync-alt"></i> Refresh</button>
+                <button id="reindexBtn" class="btn"><i class="fas fa-database"></i> Reindex Vector Store</button>
+            </div>
+        </div>
+    </div>
+</div>
+<script src="{{ url_for('static', filename='js/documents.js') }}"></script>
+{% endblock %}
